@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kuet_cse_automation/Common%20Screen/appbar_screen.dart';
+import 'package:kuet_cse_automation/Common%20Screen/hamburger_screen.dart';
 import 'package:kuet_cse_automation/Home/home_screen.dart';
 import 'package:kuet_cse_automation/Schedule/schedule_screen.dart';
 import 'package:kuet_cse_automation/Resource/resource_screen.dart';
@@ -38,6 +39,13 @@ class _MainBottomNavBarScreenState extends State<MainBottomNavBarScreen> {
         onThemeToggle: (bool isDark) {
           themeProvider.setTheme(isDark);
         },
+      ),
+      drawer: HamburgerDrawer(
+        isDarkMode: isDarkMode,
+        onThemeToggle: (bool isDark) {
+          themeProvider.setTheme(isDark);
+        },
+        userName: 'Student Name',
       ),
       body: IndexedStack(
         index: _currentIndex,
