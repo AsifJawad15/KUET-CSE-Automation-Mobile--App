@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kuet_cse_automation/Auth/Sign_Up_Screen.dart';
 import 'package:kuet_cse_automation/Auth/Reset_Password_Screen.dart';
 import 'package:kuet_cse_automation/Common%20Screen/main_bottom_navbar_screen.dart';
+import 'package:kuet_cse_automation/Teacher/teacher_dashboard.dart';
+import 'package:kuet_cse_automation/models/user_model.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -18,6 +20,11 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _isLoading = false;
 
   // Test credentials
+  static const String _studentEmail = 'student@stud.kuet.ac.bd';
+  static const String _studentPassword = 'Student123@';
+  static const String _teacherEmail = 'teacher@cse.kuet.ac.bd';
+  static const String _teacherPassword = 'Teacher123@';
+  // Legacy test credential (also works as student)
   static const String _testEmail = 'test@gmail.com';
   static const String _testPassword = 'A123456@';
 
@@ -35,13 +42,46 @@ class _SignInScreenState extends State<SignInScreen> {
       // Simulate API call
       await Future.delayed(const Duration(seconds: 1));
 
-      if (_emailController.text == _testEmail &&
-          _passwordController.text == _testPassword) {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      // Check credentials and determine role
+      bool isValid = false;
+      UserRole? role;
+
+      if (email == _teacherEmail && password == _teacherPassword) {
+        isValid = true;
+        role = UserRole.teacher;
+      } else if (email == _studentEmail && password == _studentPassword) {
+        isValid = true;
+        role = UserRole.student;
+      } else if (email == _testEmail && password == _testPassword) {
+        isValid = true;
+        role = UserRole.student; // Legacy test account
+      } else {
+        // Try to detect role from email domain
+        role = getUserRoleFromEmail(email);
+        if (role != null) {
+          // For demo: accept any valid domain email with password "Demo123@"
+          if (password == 'Demo123@') {
+            isValid = true;
+          }
+        }
+      }
+
+      if (isValid && role != null) {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainBottomNavBarScreen()),
-          );
+          if (role == UserRole.teacher) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const TeacherDashboard()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MainBottomNavBarScreen()),
+            );
+          }
         }
       } else {
         if (mounted) {
@@ -337,44 +377,76 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Test Credentials Info
+                // Test Credentials Info - Teacher
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.1),
+                    color: Colors.indigo.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                    border: Border.all(color: Colors.indigo.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.amber[700], size: 20),
+                          Icon(Icons.person, color: Colors.indigo[700], size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'Test Credentials',
+                            'Teacher Login',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.amber[900],
+                              color: Colors.indigo[900],
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Email: $_testEmail',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.amber[900],
-                        ),
+                        'Email: $_teacherEmail',
+                        style: TextStyle(fontSize: 12, color: Colors.indigo[900]),
                       ),
                       Text(
-                        'Password: $_testPassword',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.amber[900],
-                        ),
+                        'Password: $_teacherPassword',
+                        style: TextStyle(fontSize: 12, color: Colors.indigo[900]),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Test Credentials Info - Student
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.school, color: Colors.teal[700], size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Student Login',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal[900],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Email: $_studentEmail',
+                        style: TextStyle(fontSize: 12, color: Colors.teal[900]),
+                      ),
+                      Text(
+                        'Password: $_studentPassword',
+                        style: TextStyle(fontSize: 12, color: Colors.teal[900]),
                       ),
                     ],
                   ),
