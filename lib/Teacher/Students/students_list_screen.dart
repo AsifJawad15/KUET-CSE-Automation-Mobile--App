@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../data/teacher_static_data.dart';
+import '../../models/course_model.dart';
 import '../../models/user_model.dart';
+import '../../theme/app_colors.dart';
 import 'student_detail_screen.dart';
 
-/// Students List screen - view and manage students
+/// Course-specific Students List Screen
 class StudentsListScreen extends StatefulWidget {
-  const StudentsListScreen({super.key});
+  final TeacherCourse? course;
+  
+  const StudentsListScreen({super.key, this.course});
 
   @override
   State<StudentsListScreen> createState() => _StudentsListScreenState();
@@ -14,69 +18,113 @@ class StudentsListScreen extends StatefulWidget {
 class _StudentsListScreenState extends State<StudentsListScreen> {
   String _selectedSection = 'A';
   String _searchQuery = '';
+  
+  TeacherCourse get course => widget.course!;
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final students = getStudentsBySection(_selectedSection)
-        .where((s) => s.roll.contains(_searchQuery) || s.name.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+    
+    // Get students for selected section/group
+    final sectionOrGroup = course.type == CourseType.theory 
+        ? _selectedSection 
+        : '${_selectedSection}1';
+    final allStudents = getStudentsForCourse(course, sectionOrGroup);
+    
+    // Filter by search
+    final students = _searchQuery.isEmpty
+        ? allStudents
+        : allStudents.where((s) => 
+            s.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            s.roll.contains(_searchQuery)
+          ).toList();
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF121212) : Colors.grey[100],
+      backgroundColor: AppColors.background(isDarkMode),
       appBar: AppBar(
-        title: const Text('Students'),
-        backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          '${course.code} - Students',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.surface(isDarkMode),
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add),
-            onPressed: () => _showAddStudentDialog(context, isDarkMode),
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // Search and Filter
+          // Search and Section Selector
           Container(
             padding: const EdgeInsets.all(16),
-            color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.surface(isDarkMode),
+              border: Border(bottom: BorderSide(color: AppColors.border(isDarkMode))),
+            ),
             child: Column(
               children: [
                 // Search
                 TextField(
                   onChanged: (value) => setState(() => _searchQuery = value),
                   decoration: InputDecoration(
-                    hintText: 'Search by roll or name...',
-                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Search by name or roll...',
+                    hintStyle: TextStyle(color: AppColors.textMuted),
+                    prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
                     filled: true,
-                    fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[100],
+                    fillColor: AppColors.surfaceElevated(isDarkMode),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
+                  style: TextStyle(color: AppColors.textPrimary(isDarkMode)),
                 ),
                 const SizedBox(height: 12),
-                // Section Filter
+                
+                // Section/Group selector
                 Row(
                   children: [
                     Text(
-                      'Section:',
+                      course.type == CourseType.theory ? 'Section:' : 'Section:',
                       style: TextStyle(
+                        color: AppColors.textSecondary(isDarkMode),
                         fontWeight: FontWeight.w500,
-                        color: isDarkMode ? Colors.white : Colors.black87,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    _buildSectionChip('A', isDarkMode),
-                    const SizedBox(width: 8),
-                    _buildSectionChip('B', isDarkMode),
+                    const SizedBox(width: 12),
+                    ...['A', 'B'].map((s) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedSection = s),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _selectedSection == s 
+                                ? AppColors.primary 
+                                : AppColors.surfaceElevated(isDarkMode),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: _selectedSection == s 
+                                  ? AppColors.primary 
+                                  : AppColors.border(isDarkMode),
+                            ),
+                          ),
+                          child: Text(
+                            s,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: _selectedSection == s 
+                                  ? Colors.white 
+                                  : AppColors.textSecondary(isDarkMode),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )),
                     const Spacer(),
                     Text(
                       '${students.length} students',
                       style: TextStyle(
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        fontSize: 13,
+                        color: AppColors.textMuted,
                       ),
                     ),
                   ],
@@ -84,72 +132,72 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
               ],
             ),
           ),
-          // Student List
+          
+          // Students List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: students.length,
-              itemBuilder: (context, index) {
-                final student = students[index];
-                return _buildStudentCard(student, isDarkMode);
-              },
-            ),
+            child: students.isEmpty
+                ? Center(
+                    child: Text(
+                      'No students found',
+                      style: TextStyle(color: AppColors.textSecondary(isDarkMode)),
+                    ),
+                  )
+                : ListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: students.length,
+                    itemBuilder: (context, index) {
+                      final student = students[index];
+                      return _buildStudentCard(student, isDarkMode, index);
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionChip(String section, bool isDarkMode) {
-    final isSelected = _selectedSection == section;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedSection = section),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.teal : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          section,
-          style: TextStyle(
-            color: isSelected ? Colors.white : (isDarkMode ? Colors.grey[400] : Colors.grey[700]),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStudentCard(StudentUser student, bool isDarkMode) {
+  Widget _buildStudentCard(StudentUser student, bool isDarkMode, int index) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => StudentDetailScreen(student: student)),
+          MaterialPageRoute(
+            builder: (context) => StudentDetailScreen(student: student),
+          ),
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+          color: AppColors.surface(isDarkMode),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border(isDarkMode)),
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: Colors.teal.withOpacity(0.1),
-              child: Text(
-                student.name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join(),
-                style: TextStyle(
-                  color: Colors.teal[700],
-                  fontWeight: FontWeight.bold,
+            // Rank/Index
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
+            
+            // Student info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,63 +205,31 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                   Text(
                     student.name,
                     style: TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: isDarkMode ? Colors.white : Colors.black87,
+                      color: AppColors.textPrimary(isDarkMode),
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          student.roll,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.teal[700],
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Section ${student.section}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Roll: ${student.roll}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary(isDarkMode),
+                    ),
                   ),
                 ],
               ),
             ),
+            
+            // Arrow
             Icon(
-              Icons.chevron_right,
-              color: isDarkMode ? Colors.grey[600] : Colors.grey[400],
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: AppColors.textMuted,
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showAddStudentDialog(BuildContext context, bool isDarkMode) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New Student'),
-        content: const Text('This feature will be available with admin access.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }
