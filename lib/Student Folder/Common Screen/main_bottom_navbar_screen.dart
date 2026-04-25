@@ -84,12 +84,13 @@ class _MainBottomNavBarScreenState extends State<MainBottomNavBarScreen> {
       body: Stack(
         children: [
           _FadeIndexedStack(index: _currentIndex, children: _screens),
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GeoAttendanceFloatingWidget(),
-          ),
+          if (_currentIndex == 0)
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: GeoAttendanceFloatingWidget(),
+            ),
           if (canUseAssistant) const AiChatbotWidget(),
         ],
       ),

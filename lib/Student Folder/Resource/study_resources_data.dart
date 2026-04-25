@@ -188,7 +188,7 @@ const studyResourceCategories = <StudyResourceCategory>[
   ),
   StudyResourceCategory(
     id: 'previous-papers',
-    title: 'Previous Papers',
+    title: 'Question Bank',
     subtitle: 'Past exam questions and solved archives',
     summary:
         'Midterm, CT, and final papers collected semester by semester with tagging for solved sets and faculty patterns.',
@@ -204,7 +204,7 @@ const studyResourceCategories = <StudyResourceCategory>[
         courseCode: 'CSE 3201',
         contributor: 'Collected by KUET CSE resource desk',
         termLabel: '3-2',
-        formatLabel: 'Question bank',
+        formatLabel: 'Question Bank',
         sizeLabel: '5 papers',
         updatedLabel: 'Updated yesterday',
         description:

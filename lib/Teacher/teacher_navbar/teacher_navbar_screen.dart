@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../Assistant/ai_chatbot_widget.dart';
 import '../../services/notification_provider.dart';
 import '../../services/push_notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../teacher_home_content.dart';
 import '../Schedule/teacher_schedule_screen.dart';
 import '../Teacher_Profile/teacher_profile.dart';
-import '../Fab_Menu/fab_menu_widget.dart';
 import '../../shared/notification_bell.dart';
 import '../../Student Folder/Home/Features/Notice/Notice_Screen.dart';
 
@@ -102,14 +100,8 @@ class _TeacherMainScreenState extends State<TeacherMainScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Stack(
-        children: [
-          IndexedStack(index: _currentIndex, children: _screens),
-          const AiChatbotWidget(),
-        ],
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: _buildBottomNavBar(isDarkMode),
-      floatingActionButton: _currentIndex == 0 ? const TeacherFabMenu() : null,
     );
   }
 

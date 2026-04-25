@@ -228,7 +228,7 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
                             _buildScheduleCard(classInfo, isDarkMode),
                       ),
 
-                    const SizedBox(height: 80), // Space for FAB
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),

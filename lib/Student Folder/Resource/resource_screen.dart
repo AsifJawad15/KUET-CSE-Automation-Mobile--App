@@ -62,6 +62,9 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final featuredRailHeight =
+        196.0 + ((textScale - 1.0).clamp(0.0, 0.6) * 56.0);
     final visibleCategories = _visibleCategories;
     final featuredResources = _featuredResources;
 
@@ -176,7 +179,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              'Notes, previous papers, lab manuals, assignments, and video explainers organized for KUET CSE students.',
+                              'Notes, question banks, lab manuals, assignments, and video explainers organized for KUET CSE students.',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.86),
                                 fontSize: 14,
@@ -353,7 +356,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 196,
+                    height: featuredRailHeight,
                     child: ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 30),
                       scrollDirection: Axis.horizontal,
@@ -447,6 +450,8 @@ class _CategoryCard extends StatelessWidget {
               const SizedBox(height: 18),
               Text(
                 category.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
@@ -537,7 +542,7 @@ class _FeaturedCard extends StatelessWidget {
       },
       child: Container(
         width: 264,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -567,12 +572,17 @@ class _FeaturedCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(
-                    preview.category.title,
-                    style: GoogleFonts.ibmPlexMono(
-                      color: Colors.white,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    child: Text(
+                      preview.category.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.ibmPlexMono(
+                        color: Colors.white,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -583,6 +593,8 @@ class _FeaturedCard extends StatelessWidget {
             const Spacer(),
             Text(
               preview.item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -593,7 +605,7 @@ class _FeaturedCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               preview.item.subtitle,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.84),
@@ -604,15 +616,19 @@ class _FeaturedCard extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               children: [
-                Text(
-                  preview.item.courseCode,
-                  style: GoogleFonts.ibmPlexMono(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    preview.item.courseCode,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.ibmPlexMono(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward_rounded, color: Colors.white),
               ],
             ),
