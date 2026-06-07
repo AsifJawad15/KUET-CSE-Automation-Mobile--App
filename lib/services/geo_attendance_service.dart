@@ -1,6 +1,7 @@
 import 'dart:math' show pi, sin, cos, sqrt, atan2;
 import 'package:flutter/foundation.dart';
 import 'biometric_auth_service.dart';
+import 'geo_attendance_code_service.dart';
 import 'supabase_service.dart';
 
 /// Service for geo-attendance room management and attendance submission.
@@ -276,10 +277,7 @@ class GeoAttendanceService {
       );
 
       // Auto-close expired rooms first
-      await SupabaseService.from('geo_attendance_rooms')
-          .update({'is_active': false})
-          .eq('is_active', true)
-          .lt('end_time', DateTime.now().toUtc().toIso8601String());
+      await _closeExpiredRooms();
 
       // Check course type to determine max rooms
       final offering = await SupabaseService.from(
@@ -365,6 +363,11 @@ class GeoAttendanceService {
 
         roomId = data['id'] as String?;
 
+        if (roomId != null) {
+          final code = await GeoAttendanceCodeService.generateCode(roomId);
+          data['verification_code'] = code;
+        }
+
         await _seedDefaultGeoAttendanceAbsences(
           offeringId: offeringId,
           sessionId: createdSessionId,
@@ -401,6 +404,7 @@ class GeoAttendanceService {
     await SupabaseService.from(
       'geo_attendance_rooms',
     ).update({'is_active': false}).eq('id', roomId);
+    await GeoAttendanceCodeService.deleteCode(roomId);
   }
 
   // ── Teacher: Get active rooms ────────────────────────────
@@ -410,10 +414,7 @@ class GeoAttendanceService {
   }) async {
     try {
       // Close expired rooms first (use UTC for correct comparison)
-      await SupabaseService.from('geo_attendance_rooms')
-          .update({'is_active': false})
-          .eq('is_active', true)
-          .lt('end_time', DateTime.now().toUtc().toIso8601String());
+      await _closeExpiredRooms();
 
       final data = await SupabaseService.from('geo_attendance_rooms')
           .select('''
@@ -421,6 +422,9 @@ class GeoAttendanceService {
             course_offerings (
               id, term,
               courses ( code, title, course_type )
+            ),
+            geo_attendance_codes (
+              code
             )
           ''')
           .eq('teacher_user_id', teacherUserId)
@@ -567,10 +571,7 @@ class GeoAttendanceService {
       final rollNo = studentData['roll_no'] as String? ?? '';
 
       // Close expired rooms (use UTC for correct comparison)
-      await SupabaseService.from('geo_attendance_rooms')
-          .update({'is_active': false})
-          .eq('is_active', true)
-          .lt('end_time', DateTime.now().toUtc().toIso8601String());
+      await _closeExpiredRooms();
 
       // Get active rooms — use regular joins (not !inner) and filter in Dart
       // to avoid PostgREST join failures that silently return empty results.
@@ -581,6 +582,9 @@ class GeoAttendanceService {
               id, term,
               courses ( code, title, course_type ),
               teachers ( full_name )
+            ),
+            geo_attendance_codes (
+              code
             )
           ''')
           .eq('is_active', true)
@@ -674,6 +678,7 @@ class GeoAttendanceService {
     required String studentUserId,
     required double latitude,
     required double longitude,
+    String? verificationCode,
   }) async {
     // 1. Check room is active
     final roomData = await SupabaseService.from('geo_attendance_rooms')
@@ -690,7 +695,16 @@ class GeoAttendanceService {
       await SupabaseService.from(
         'geo_attendance_rooms',
       ).update({'is_active': false}).eq('id', geoRoomId);
+      await GeoAttendanceCodeService.deleteCode(geoRoomId);
       throw Exception('This attendance room has expired');
+    }
+
+    // Extra Security: Verification Code check
+    final dbCode = await GeoAttendanceCodeService.getCode(geoRoomId);
+    if (dbCode != null && dbCode.isNotEmpty) {
+      if (verificationCode == null || verificationCode.trim() != dbCode.trim()) {
+        throw Exception('Incorrect verification code. Please ask the teacher.');
+      }
     }
 
     // 2. Calculate distance – prefer room-specific coordinates, fallback to building
@@ -1104,6 +1118,25 @@ class GeoAttendanceService {
       return defaultRoomMaxDistanceMeters;
     }
     return value;
+  }
+
+  static Future<void> _closeExpiredRooms() async {
+    try {
+      final expiredData = await SupabaseService.from('geo_attendance_rooms')
+          .select('id')
+          .eq('is_active', true)
+          .lt('end_time', DateTime.now().toUtc().toIso8601String());
+      final expiredList = List<Map<String, dynamic>>.from(expiredData as List);
+      if (expiredList.isNotEmpty) {
+        final expiredIds = expiredList.map((r) => r['id'] as String).toList();
+        await SupabaseService.from('geo_attendance_rooms')
+            .update({'is_active': false})
+            .inFilter('id', expiredIds);
+        await GeoAttendanceCodeService.deleteCodes(expiredIds);
+      }
+    } catch (e) {
+      debugPrint('Error auto-closing expired rooms: $e');
+    }
   }
 }
 
