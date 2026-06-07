@@ -5,6 +5,7 @@ import '../models/enrolled_student.dart';
 import '../../Student Folder/models/course_model.dart';
 import '../../theme/app_colors.dart';
 import '../services/teacher_course_service.dart';
+import '../../theme/animated_components.dart';
 import 'roll_call_screen.dart';
 
 /// Teacher Attendance screen - Course-specific with date picker
@@ -477,8 +478,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
   void _navigateToRollCall(String sectionOrGroup) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => RollCallScreen(
+      SmoothPageRoute(
+        page: RollCallScreen(
           course: course,
           sectionOrGroup: sectionOrGroup,
           date: _selectedDate,

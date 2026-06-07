@@ -5,6 +5,7 @@ import '../../Auth/change_password_screen.dart';
 import '../../app_theme.dart';
 import '../../services/supabase_service.dart';
 import '../../shared/profile_widgets.dart';
+import '../../theme/animated_components.dart';
 import '../../theme/app_colors.dart';
 import 'term_upgrade_widget.dart';
 
@@ -238,8 +239,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const ChangePasswordScreen(),
+                        SmoothPageRoute(
+                          page: const ChangePasswordScreen(),
                         ),
                       );
                     },

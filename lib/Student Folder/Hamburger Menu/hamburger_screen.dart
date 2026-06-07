@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:kuet_cse_automation/Student%20Folder/Hamburger%20Menu/Faculty_Info_screen.dart';
 import 'package:kuet_cse_automation/Student%20Folder/Result/result_screen.dart';
 import 'package:kuet_cse_automation/Student%20Folder/Curriculum/curriculum_screen.dart';
+import '../../theme/animated_components.dart';
 import '../../theme/app_colors.dart';
 
 class HamburgerDrawer extends StatefulWidget {
@@ -165,8 +166,8 @@ class _HamburgerDrawerState extends State<HamburgerDrawer> {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const FacultyInfoScreen(),
+                        SmoothPageRoute(
+                          page: const FacultyInfoScreen(),
                         ),
                       );
                     },
@@ -178,8 +179,8 @@ class _HamburgerDrawerState extends State<HamburgerDrawer> {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const ResultScreen(),
+                        SmoothPageRoute(
+                          page: const ResultScreen(),
                         ),
                       );
                     },
@@ -191,8 +192,8 @@ class _HamburgerDrawerState extends State<HamburgerDrawer> {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const CourseInfoScreen(),
+                        SmoothPageRoute(
+                          page: const CourseInfoScreen(),
                         ),
                       );
                     },

@@ -10,6 +10,7 @@ import '../../services/local_notification_service.dart';
 import '../../services/notification_provider.dart';
 import '../../services/notification_service.dart';
 import '../../services/supabase_service.dart';
+import '../../theme/animated_components.dart';
 //import '../../theme/app_colors.dart';
 import '../Attendance/student_geo_attendance_screen.dart';
 
@@ -346,8 +347,8 @@ class _GeoAttendanceFloatingWidgetState
         onTap: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const StudentGeoAttendanceScreen(),
+            SmoothPageRoute(
+              page: const StudentGeoAttendanceScreen(),
             ),
           );
           _fetchRooms();

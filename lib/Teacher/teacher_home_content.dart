@@ -8,6 +8,7 @@ import '../app_theme.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/course_utils.dart';
+import '../theme/animated_components.dart';
 import 'Schedule/teacher_schedule_model.dart';
 import 'Schedule/teacher_schedule_service.dart';
 import 'course_detail_screen.dart';
@@ -652,8 +653,8 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => CourseDetailScreen(course: course),
+          SmoothPageRoute(
+            page: CourseDetailScreen(course: course),
           ),
         );
       },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Auth/Sign_In_Screen.dart';
+import '../theme/animated_components.dart';
 import '../services/biometric_auth_service.dart';
 import '../services/class_reminder_service.dart';
 import '../services/local_notification_service.dart';
@@ -279,7 +280,7 @@ void showLogoutDialog(BuildContext context, bool isDarkMode) {
             if (context.mounted) {
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const SignInScreen()),
+                SmoothPageRoute(page: const SignInScreen()),
                 (route) => false,
               );
             }

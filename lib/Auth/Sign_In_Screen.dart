@@ -6,6 +6,7 @@ import 'forgot_password_screen.dart';
 import '../services/biometric_auth_service.dart';
 import '../services/supabase_service.dart';
 import '../shared/ui_helpers.dart';
+import '../theme/animated_components.dart';
 import '../theme/app_colors.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -52,9 +53,8 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _openForgotPassword() async {
     final changed = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) =>
-            ForgotPasswordScreen(initialEmail: _emailController.text.trim()),
+      SmoothPageRoute(
+        page: ForgotPasswordScreen(initialEmail: _emailController.text.trim()),
       ),
     );
 
@@ -143,14 +143,14 @@ class _SignInScreenState extends State<SignInScreen> {
     if (role == 'TEACHER' || role == 'HEAD') {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const TeacherMainScreen()),
+        SmoothPageRoute(page: const TeacherMainScreen()),
       );
       return;
     }
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const MainBottomNavBarScreen()),
+      SmoothPageRoute(page: const MainBottomNavBarScreen()),
     );
   }
 

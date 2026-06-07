@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:kuet_cse_automation/app.dart';
 
 import 'config/push_config.dart';
@@ -10,6 +11,10 @@ import 'services/supabase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Prevent Google Fonts from attempting HTTP downloads at runtime —
+  // fonts are bundled via pubspec, so this avoids first-frame jank.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Initialize Supabase before running app
   await SupabaseService.initialize(

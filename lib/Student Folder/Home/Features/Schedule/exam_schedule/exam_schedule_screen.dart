@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kuet_cse_automation/Student%20Folder/Home/Features/Schedule/exam_schedule/exam_schedule_providers.dart';
 import 'package:kuet_cse_automation/Student%20Folder/Home/Features/ExamManage/cr_exam_screen.dart';
+import 'package:kuet_cse_automation/Student%20Folder/Home/Features/Schedule/exam_schedule/exam_schedule_providers.dart';
 import 'package:kuet_cse_automation/Student%20Folder/services/cr_room_request_service.dart';
+import 'package:kuet_cse_automation/theme/animated_components.dart';
 
 class ExamScheduleScreen extends ConsumerStatefulWidget {
   const ExamScheduleScreen({super.key});
@@ -106,8 +107,8 @@ class _ExamScheduleScreenState extends ConsumerState<ExamScheduleScreen> {
               heroTag: 'cr_exam_fab',
               onPressed: () async {
                 await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const CRExamScreen(),
+                  SmoothPageRoute(
+                    page: const CRExamScreen(),
                   ),
                 );
                 ref.invalidate(examScheduleProvider);

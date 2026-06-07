@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import 'send_announcement_screen.dart';
 import 'room_request_screen.dart';
+import '../../theme/animated_components.dart';
 
 /// FAB Menu Widget with expandable options
 class TeacherFabMenu extends StatefulWidget {
@@ -71,8 +72,8 @@ class _TeacherFabMenuState extends State<TeacherFabMenu>
                 _toggleMenu();
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const RoomRequestScreen(),
+                  SmoothPageRoute(
+                    page: const RoomRequestScreen(),
                   ),
                 );
               },
@@ -92,8 +93,8 @@ class _TeacherFabMenuState extends State<TeacherFabMenu>
                 _toggleMenu();
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const SendAnnouncementScreen(),
+                  SmoothPageRoute(
+                    page: const SendAnnouncementScreen(),
                   ),
                 );
               },

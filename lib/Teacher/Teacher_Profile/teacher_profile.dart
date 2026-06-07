@@ -5,6 +5,7 @@ import '../../Auth/change_password_screen.dart';
 import '../../app_theme.dart';
 import '../../services/supabase_service.dart';
 import '../../shared/profile_widgets.dart';
+import '../../theme/animated_components.dart';
 import '../../theme/app_colors.dart';
 import 'edit_teacher_profile.dart';
 
@@ -196,8 +197,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                       if (_profileData == null) return;
                       final changed = await Navigator.push<bool>(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => EditTeacherProfileScreen(
+                        SmoothPageRoute(
+                          page: EditTeacherProfileScreen(
                             profileData: _profileData!,
                           ),
                         ),
@@ -215,8 +216,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const ChangePasswordScreen(),
+                        SmoothPageRoute(
+                          page: const ChangePasswordScreen(),
                         ),
                       );
                     },

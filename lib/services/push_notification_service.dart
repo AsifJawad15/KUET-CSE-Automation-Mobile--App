@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../Student Folder/Attendance/student_geo_attendance_screen.dart';
 import '../config/push_config.dart';
 import '../shared/notification_screen.dart';
+import '../theme/animated_components.dart';
 import 'local_notification_service.dart';
 import 'session_service.dart';
 import 'supabase_core.dart';
@@ -109,11 +110,11 @@ class PushNotificationService {
         final role = SessionService.currentRole;
         if (role == 'TEACHER' || role == 'HEAD') return;
         await navigator.push(
-          MaterialPageRoute(builder: (_) => const StudentGeoAttendanceScreen()),
+          SmoothPageRoute(page: const StudentGeoAttendanceScreen()),
         );
       case _PushNavigationType.notificationInbox:
         await navigator.push(
-          MaterialPageRoute(builder: (_) => const NotificationScreen()),
+          SmoothPageRoute(page: const NotificationScreen()),
         );
     }
   }

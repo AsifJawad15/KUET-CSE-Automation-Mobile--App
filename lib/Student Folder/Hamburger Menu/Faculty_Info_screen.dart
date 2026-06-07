@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/supabase_service.dart';
+import '../../theme/animated_components.dart';
 import '../../theme/app_colors.dart';
 import 'models/faculty.dart';
 import 'widgets/faculty_list_item.dart';
@@ -161,8 +162,8 @@ class _FacultyInfoScreenState extends State<FacultyInfoScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => FacultyDetailScreen(faculty: f),
+                          SmoothPageRoute(
+                            page: FacultyDetailScreen(faculty: f),
                           ),
                         );
                       },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 //import '../../services/supabase_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/animated_components.dart';
 import '../Room_info/room_info_screen.dart';
 import '../Room_info/room_model.dart';
 import '../Room_info/room_schedule_screen.dart';
@@ -58,7 +59,7 @@ class _RoomRequestScreenState extends State<RoomRequestScreen> {
           TextButton.icon(
             onPressed: () => Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const RoomInfoScreen()),
+              SmoothPageRoute(page: const RoomInfoScreen()),
             ),
             icon: Icon(Icons.grid_view, size: 18, color: AppColors.primary),
             label: Text('Room Grid', style: TextStyle(color: AppColors.primary, fontSize: 13)),
@@ -182,7 +183,7 @@ class _RoomRequestScreenState extends State<RoomRequestScreen> {
         trailing: Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary(isDarkMode)),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => RoomScheduleScreen(room: room)),
+          SmoothPageRoute(page: RoomScheduleScreen(room: room)),
         ).then((_) {
           // Navigate back-and-out after a successful booking
           if (mounted) Navigator.of(context).maybePop();

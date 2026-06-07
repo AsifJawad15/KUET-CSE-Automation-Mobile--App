@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../shared/widgets/dot_grid_painter.dart';
+import '../../theme/animated_components.dart';
 import '../../theme/app_colors.dart';
 import 'resource_detail_screen.dart';
 import 'study_resources_data.dart';
@@ -371,8 +372,8 @@ class _ResourceCategoryScreenState extends State<ResourceCategoryScreen> {
                         borderRadius: BorderRadius.circular(24),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ResourceDetailScreen(
+                            SmoothPageRoute(
+                              page: ResourceDetailScreen(
                                 category: widget.category,
                                 item: item,
                               ),

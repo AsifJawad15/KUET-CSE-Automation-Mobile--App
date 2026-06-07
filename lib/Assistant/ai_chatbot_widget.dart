@@ -93,7 +93,7 @@ class _AiChatbotWidgetState extends State<AiChatbotWidget> {
 
   Widget _buildLauncher(bool isDarkMode) {
     return GestureDetector(
-      onTap: () => setState(() => _isOpen = true),
+      onTap: () => setState(() => _isOpen = !_isOpen),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

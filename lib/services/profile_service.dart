@@ -9,10 +9,35 @@ import 'supabase_core.dart';
 class ProfileService {
   ProfileService._();
 
+  // ── In-memory profile cache (avoids redundant Supabase calls) ──────
+  static const _cacheTtl = Duration(minutes: 5);
+
+  static Map<String, dynamic>? _studentProfileCache;
+  static DateTime? _studentCacheTime;
+
+  static Map<String, dynamic>? _teacherProfileCache;
+  static DateTime? _teacherCacheTime;
+
+  /// Clear both caches (call on sign-out or profile update).
+  static void clearCache() {
+    _studentProfileCache = null;
+    _studentCacheTime = null;
+    _teacherProfileCache = null;
+    _teacherCacheTime = null;
+  }
+
+  static bool _isCacheValid(DateTime? cacheTime) =>
+      cacheTime != null && DateTime.now().difference(cacheTime) < _cacheTtl;
+
   // ── Student Profile ─────────────────────────────────────────────────
 
   /// Get student profile (profiles + students tables).
   static Future<Map<String, dynamic>?> getStudentProfile() async {
+    // Return cached data if still fresh
+    if (_isCacheValid(_studentCacheTime) && _studentProfileCache != null) {
+      return _studentProfileCache;
+    }
+
     final userId = SessionService.currentUserId;
     if (userId == null) return null;
 
@@ -37,7 +62,7 @@ class ProfileService {
       final year = int.tryParse(parts[0]) ?? 1;
       final semester = int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1;
 
-      return {
+      final result = {
         ...profileData,
         ...studentData,
         'current_year': year,
@@ -45,6 +70,12 @@ class ProfileService {
         'year_display': DisplayUtils.yearDisplay(year),
         'semester_display': DisplayUtils.semesterDisplay(semester),
       };
+
+      // Update cache
+      _studentProfileCache = result;
+      _studentCacheTime = DateTime.now();
+
+      return result;
     } catch (e) {
       debugPrint('Error fetching student profile: $e');
       return null;
@@ -60,6 +91,8 @@ class ProfileService {
       await SupabaseCore.from('students')
           .update({'phone': phone})
           .eq('user_id', userId);
+      _studentProfileCache = null;
+      _studentCacheTime = null;
       return true;
     } catch (e) {
       debugPrint('Error updating student phone: $e');
@@ -76,6 +109,8 @@ class ProfileService {
       await SupabaseCore.from('students')
           .update({'term': newTerm})
           .eq('user_id', userId);
+      _studentProfileCache = null;
+      _studentCacheTime = null;
       return true;
     } catch (e) {
       debugPrint('Error updating student term: $e');
@@ -87,6 +122,11 @@ class ProfileService {
 
   /// Get teacher profile (profiles + teachers tables).
   static Future<Map<String, dynamic>?> getTeacherProfile() async {
+    // Return cached data if still fresh
+    if (_isCacheValid(_teacherCacheTime) && _teacherProfileCache != null) {
+      return _teacherProfileCache;
+    }
+
     await SupabaseCore.ensurePrefs();
     final userId = SessionService.currentUserId;
     if (userId == null) return null;
@@ -107,12 +147,18 @@ class ProfileService {
 
       if (teacherData == null) return profileData;
 
-      return {
+      final result = {
         ...profileData,
         ...teacherData,
         'designation_display':
             DisplayUtils.designationDisplay(teacherData['designation']),
       };
+
+      // Update cache
+      _teacherProfileCache = result;
+      _teacherCacheTime = DateTime.now();
+
+      return result;
     } catch (e) {
       debugPrint('Error fetching teacher profile: $e');
       return null;
@@ -128,6 +174,8 @@ class ProfileService {
       await SupabaseCore.from('teachers')
           .update({'phone': phone})
           .eq('user_id', userId);
+      _teacherProfileCache = null;
+      _teacherCacheTime = null;
       return true;
     } catch (e) {
       debugPrint('Error updating teacher phone: $e');
@@ -145,6 +193,8 @@ class ProfileService {
       await SupabaseCore.from('teachers')
           .update(fields)
           .eq('user_id', userId);
+      _teacherProfileCache = null;
+      _teacherCacheTime = null;
       return true;
     } catch (e) {
       debugPrint('Error updating teacher profile: $e');

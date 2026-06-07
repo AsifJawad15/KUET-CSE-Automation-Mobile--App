@@ -8,6 +8,7 @@ import 'package:kuet_cse_automation/Student%20Folder/Home/Features/RoomRequest/c
 import 'package:kuet_cse_automation/Student%20Folder/Home/Features/Schedule/unified_schedule_screen.dart';
 import 'package:kuet_cse_automation/shared/widgets/dot_grid_painter.dart';
 import 'package:kuet_cse_automation/theme/app_colors.dart';
+import 'package:kuet_cse_automation/theme/animated_components.dart';
 
 import '../../services/supabase_service.dart';
 import '../Attendance/attendance_screen.dart';
@@ -136,7 +137,9 @@ class _HomeScreenState extends State<HomeScreen>
         children: [
           // Dot-grid background
           Positioned.fill(
-            child: CustomPaint(painter: DotGridPainter(dotColor: dotColor)),
+            child: RepaintBoundary(
+              child: CustomPaint(painter: DotGridPainter(dotColor: dotColor)),
+            ),
           ),
           RefreshIndicator(
             color: AppColors.primary,
@@ -327,45 +330,45 @@ class _HomeScreenState extends State<HomeScreen>
       tile(Icons.fact_check_rounded, 'Attendance', 'Track presence', () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+          SmoothPageRoute(page: const AttendanceScreen()),
         );
       }),
       tile(Icons.menu_book_rounded, 'Course Info', 'Syllabus & credits', () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CourseInfoScreen()),
+          SmoothPageRoute(page: const CourseInfoScreen()),
         );
       }),
       tile(Icons.calendar_month_rounded, 'Schedule', 'Class timetable', () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const UnifiedScheduleScreen()),
+          SmoothPageRoute(page: const UnifiedScheduleScreen()),
         );
       }),
       tile(Icons.campaign_rounded, 'Notices', 'Dept. updates', () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const NoticeScreen()),
+          SmoothPageRoute(page: const NoticeScreen()),
         );
       }),
       tile(Icons.location_on_rounded, 'Geo-Attend', 'Location check-in', () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const StudentGeoAttendanceScreen()),
+          SmoothPageRoute(page: const StudentGeoAttendanceScreen()),
         );
       }),
       if (_isCR)
         tile(Icons.meeting_room_rounded, 'Room Request', 'CR booking', () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CRRoomRequestScreen()),
+            SmoothPageRoute(page: const CRRoomRequestScreen()),
           );
         }),
       if (_isCR)
         tile(Icons.edit_calendar_rounded, 'Manage Exams', 'CT & exams', () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CRExamScreen()),
+            SmoothPageRoute(page: const CRExamScreen()),
           );
         }),
     ];

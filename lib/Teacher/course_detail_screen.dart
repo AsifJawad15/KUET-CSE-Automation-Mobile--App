@@ -12,6 +12,7 @@ import 'services/teacher_course_service.dart';
 import 'widgets/course_header_card.dart';
 import 'widgets/course_stat_card.dart';
 import 'widgets/course_action_card.dart';
+import '../theme/animated_components.dart';
 
 /// Course Detail Screen - All actions for a specific course
 class CourseDetailScreen extends StatefulWidget {
@@ -156,8 +157,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       isDarkMode: isDarkMode,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => CourseAttendanceScreen(course: widget.course),
+                        SmoothPageRoute(
+                          page: CourseAttendanceScreen(course: widget.course),
                         ),
                       ),
                     ),
@@ -170,8 +171,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       isDarkMode: isDarkMode,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => GeoAttendanceRoomScreen(
+                        SmoothPageRoute(
+                          page: GeoAttendanceRoomScreen(
                             preSelectedCourse: widget.course,
                           ),
                         ),
@@ -186,8 +187,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       isDarkMode: isDarkMode,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => CourseGradingScreen(course: widget.course),
+                        SmoothPageRoute(
+                          page: CourseGradingScreen(course: widget.course),
                         ),
                       ),
                     ),
@@ -200,8 +201,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       isDarkMode: isDarkMode,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) =>
+                        SmoothPageRoute(
+                          page:
                               CourseAnnouncementsScreen(course: widget.course),
                         ),
                       ),
@@ -215,8 +216,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       isDarkMode: isDarkMode,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => TeacherScheduleScreen(
+                        SmoothPageRoute(
+                          page: TeacherScheduleScreen(
                             courseCode: widget.course.code,
                           ),
                         ),
@@ -231,8 +232,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                       isDarkMode: isDarkMode,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => CourseStudentsScreen(course: widget.course),
+                        SmoothPageRoute(
+                          page: CourseStudentsScreen(course: widget.course),
                         ),
                       ),
                     ),

@@ -4,6 +4,7 @@ import 'package:bcrypt/bcrypt.dart';
 
 import '../config/push_config.dart';
 import 'background_notification_service.dart';
+import 'profile_service.dart';
 import 'push_notification_service.dart';
 import 'session_service.dart';
 import 'supabase_core.dart';
@@ -96,6 +97,7 @@ class AuthService {
     await BackgroundNotificationService.stop();
     PushConfig.logoutUser();
     await PushNotificationService.clearUserIdentity();
+    ProfileService.clearCache();
     await SessionService.clearSession();
   }
 

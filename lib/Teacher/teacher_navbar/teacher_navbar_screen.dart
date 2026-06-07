@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../Assistant/ai_chatbot_widget.dart';
 import '../../services/notification_provider.dart';
 import '../../services/push_notification_service.dart';
-import '../../theme/app_colors.dart';
-import '../teacher_home_content.dart';
-import '../Schedule/teacher_schedule_screen.dart';
-import '../Teacher_Profile/teacher_profile.dart';
 import '../../shared/notification_bell.dart';
 import '../../Student Folder/Home/Features/Notice/Notice_Screen.dart';
+import '../../theme/app_colors.dart';
+import '../Fab_Menu/fab_menu_widget.dart';
+import '../Schedule/teacher_schedule_screen.dart';
+import '../Teacher_Profile/teacher_profile.dart';
+import '../teacher_home_content.dart';
 
 /// Main Teacher Navigation Screen with Bottom Navbar
 class TeacherMainScreen extends StatefulWidget {
@@ -100,7 +104,17 @@ class _TeacherMainScreenState extends State<TeacherMainScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: Stack(
+        children: [
+          _FadeIndexedStack(index: _currentIndex, children: _screens),
+          const AiChatbotWidget(),
+          const Positioned(
+            right: 16,
+            bottom: 16,
+            child: TeacherFabMenu(),
+          ),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNavBar(isDarkMode),
     );
   }
@@ -174,7 +188,10 @@ class _TeacherMainScreenState extends State<TeacherMainScreen> {
               : AppColors.textSecondary(isDarkMode));
 
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() => _currentIndex = index);
+      },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -201,6 +218,34 @@ class _TeacherMainScreenState extends State<TeacherMainScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Fade-switching IndexedStack ──────────────────────────────────────────────
+class _FadeIndexedStack extends StatelessWidget {
+  final int index;
+  final List<Widget> children;
+
+  const _FadeIndexedStack({required this.index, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: children.indexed.map((entry) {
+        final i = entry.$1;
+        final child = entry.$2;
+        return IgnorePointer(
+          ignoring: i != index,
+          child: AnimatedOpacity(
+            opacity: i == index ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOut,
+            child: child,
+          ),
+        );
+      }).toList(),
     );
   }
 }

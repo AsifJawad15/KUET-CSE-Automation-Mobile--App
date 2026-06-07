@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kuet_cse_automation/Assistant/ai_chatbot_widget.dart';
 import 'package:kuet_cse_automation/Student%20Folder/Common%20Screen/appbar_screen.dart';
 import 'package:kuet_cse_automation/Student%20Folder/Hamburger%20Menu/hamburger_screen.dart';
@@ -155,6 +156,7 @@ class _MainBottomNavBarScreenState extends State<MainBottomNavBarScreen> {
 
     return GestureDetector(
       onTap: () {
+        HapticFeedback.lightImpact();
         setState(() {
           _currentIndex = index;
         });

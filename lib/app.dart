@@ -6,6 +6,16 @@ import 'package:kuet_cse_automation/services/notification_provider.dart';
 import 'package:kuet_cse_automation/services/push_notification_service.dart';
 import 'package:provider/provider.dart' as provider;
 
+/// Smooth, bouncy scrolling on all platforms — eliminates the
+/// hard-stop overscroll effect on Android and gives a premium feel.
+class _BouncyScrollBehavior extends ScrollBehavior {
+  const _BouncyScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+}
+
 class CSEApp extends StatelessWidget {
   const CSEApp({super.key});
 
@@ -30,6 +40,7 @@ class CSEApp extends StatelessWidget {
               themeMode: themeProvider.isDarkMode
                   ? ThemeMode.dark
                   : ThemeMode.light,
+              scrollBehavior: const _BouncyScrollBehavior(),
               home: const SplashScreen(),
             );
           },

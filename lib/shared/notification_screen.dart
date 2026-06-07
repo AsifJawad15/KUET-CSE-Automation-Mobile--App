@@ -8,6 +8,7 @@ import '../../services/local_notification_service.dart';
 import '../../services/notification_provider.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/animated_components.dart';
 
 // ─────────────────────────────────────────────────────────────
 // Notification Screen
@@ -28,8 +29,8 @@ class NotificationScreen extends StatelessWidget {
     if (notification.type == 'geo_attendance_open') {
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => const StudentGeoAttendanceScreen(),
+        SmoothPageRoute(
+          page: const StudentGeoAttendanceScreen(),
         ),
       );
       return;

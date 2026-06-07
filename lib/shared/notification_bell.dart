@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/notification_provider.dart';
+import '../theme/animated_components.dart';
 import '../theme/app_colors.dart';
 import 'notification_screen.dart';
 
@@ -48,8 +49,8 @@ class NotificationBell extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const NotificationScreen(),
+                  SmoothPageRoute(
+                    page: const NotificationScreen(),
                   ),
                 );
               },

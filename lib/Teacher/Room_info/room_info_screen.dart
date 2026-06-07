@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../theme/animated_components.dart';
 import '../../theme/app_colors.dart';
 import 'room_model.dart';
-import 'room_service.dart';
 import 'room_schedule_screen.dart';
+import 'room_service.dart';
 
 /// Room Info Screen - View rooms from the database grouped by type.
 /// Tap a room card to see its booked schedule and free time-slots.
@@ -263,8 +264,8 @@ class _RoomInfoScreenState extends State<RoomInfoScreen>
           borderRadius: BorderRadius.circular(16),
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (_) => RoomScheduleScreen(room: room)),
+            SmoothPageRoute(
+                page: RoomScheduleScreen(room: room)),
           ),
           child: Container(
             padding: const EdgeInsets.all(16),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../shared/widgets/dot_grid_painter.dart';
+import '../../theme/animated_components.dart';
 import '../../theme/app_colors.dart';
 import 'resource_category_screen.dart';
 import 'study_resources_data.dart';
@@ -392,8 +393,8 @@ class _CategoryCard extends StatelessWidget {
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ResourceCategoryScreen(category: category),
+            SmoothPageRoute(
+              page: ResourceCategoryScreen(category: category),
             ),
           );
         },
@@ -535,8 +536,8 @@ class _FeaturedCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ResourceCategoryScreen(category: preview.category),
+          SmoothPageRoute(
+            page: ResourceCategoryScreen(category: preview.category),
           ),
         );
       },
