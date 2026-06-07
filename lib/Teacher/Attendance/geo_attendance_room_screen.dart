@@ -231,10 +231,12 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
         final term = _selectedCourse!.shortSemester; // e.g., "3-2"
         final section = _selectedSection;
         final sectionLabel = section != null ? ' ($section)' : '';
+        final codeGenerated = roomData['verification_code'] as String? ?? '';
+        final codeText = codeGenerated.isNotEmpty ? ' Code: $codeGenerated.' : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Room opened for $courseCode$sectionLabel. '
+              'Room opened for $courseCode$sectionLabel.$codeText '
               'Students must stay within $rangeMeters m, the room stays open '
               'for $durationMinutes min, and leaving the area for '
               '$absenceGraceMinutes min marks them absent.',
@@ -907,6 +909,8 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
     final absenceGraceMinutes =
         (room['absence_grace_minutes'] as num?)?.round() ??
         GeoAttendanceService.defaultAbsenceGraceMinutes;
+    final codeMap = room['geo_attendance_codes'];
+    final verificationCode = codeMap is Map ? codeMap['code'] as String? : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -999,6 +1003,8 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
               _infoChip('$rangeMeters m radius', AppColors.primary),
               _infoChip('$durationMinutes min open', AppColors.info),
               _infoChip('$absenceGraceMinutes min absent', AppColors.warning),
+              if (verificationCode != null && verificationCode.isNotEmpty)
+                _infoChip('Code: $verificationCode', AppColors.success),
             ],
           ),
           const SizedBox(height: 12),
