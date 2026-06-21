@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
+import '../../config/supabase_config.dart';
 import '../../services/notification_service.dart';
+import '../../services/supabase_core.dart';
 import '../../services/supabase_service.dart';
 import 'room_booking_model.dart';
 import 'room_model.dart';
@@ -83,9 +87,52 @@ class RoomBookingService {
     }
   }
 
+  static Future<Map<String, dynamic>> _postToBackend(String path, Map<String, dynamic> body) async {
+    final client = HttpClient();
+    try {
+      final prefs = await SupabaseCore.ensurePrefs();
+      final token = prefs.getString('user_token') ?? '';
+
+      final uri = Uri.parse('${SupabaseConfig.backendUrl}$path');
+      final request = await client.postUrl(uri).timeout(const Duration(seconds: 15));
+      request.headers.contentType = ContentType.json;
+      request.headers.set('Authorization', 'Bearer $token');
+      request.headers.set('x-client-type', 'mobile');
+
+      request.write(jsonEncode(body));
+
+      final response = await request.close().timeout(const Duration(seconds: 15));
+      final responseBody = await response.transform(utf8.decoder).join();
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        try {
+          final errJson = jsonDecode(responseBody);
+          return {
+            'success': false,
+            'message': errJson['error'] ?? 'Request failed (${response.statusCode})',
+          };
+        } catch (_) {
+          return {
+            'success': false,
+            'message': 'Request failed with status code ${response.statusCode}',
+          };
+        }
+      }
+
+      final resJson = jsonDecode(responseBody);
+      return {
+        'success': true,
+        'data': resJson['data'],
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: ${e.toString()}'};
+    } finally {
+      client.close();
+    }
+  }
+
   // ─── Submit a new booking request (timestamp-priority) ─
-  /// Inserts a booking with auto-approved status if no conflicting
-  /// booking exists for the same room + date + overlapping time range.
+  /// Submits a room booking request to the Next.js backend for admin approval.
   static Future<BookingResult> submitBookingRequest({
     required String roomNumber,
     required String offeringId,
@@ -102,72 +149,28 @@ class RoomBookingService {
     }
 
     try {
-      final conflictMessage = await _findConflictMessage(
-        roomNumber: roomNumber,
-        dayOfWeek: dayOfWeek,
-        startTime: '${fromPeriod.start}:00',
-        endTime: '${toPeriod.end}:00',
-        bookingDate: bookingDate,
-      );
-
-      if (conflictMessage != null) {
-        return BookingResult(success: false, message: conflictMessage);
-      }
-
-      await SupabaseService.client.from('room_booking_requests').insert({
-        'teacher_user_id': userId,
+      final res = await _postToBackend('/api/teacher-portal/room-requests', {
         'offering_id': offeringId,
         'room_number': roomNumber,
-        'day_of_week': dayOfWeek,
-        'start_period': fromPeriod.label,
-        'end_period': toPeriod.label,
+        'date': bookingDate,
         'start_time': '${fromPeriod.start}:00',
         'end_time': '${toPeriod.end}:00',
-        'booking_date': bookingDate,
-        'section': section,
-        'purpose': purpose,
-        'status': 'approved',
+        'purpose': purpose ?? 'Class Booking',
       });
 
-      await _syncToRoutineSlot(
-        offeringId: offeringId,
-        roomNumber: roomNumber,
-        dayOfWeek: dayOfWeek,
-        startTime: '${fromPeriod.start}:00',
-        endTime: '${toPeriod.end}:00',
-        bookingDate: bookingDate,
-        section: section,
-      );
-
-      // Fire-and-forget: notify students of the booked room
-      _notifyStudentsRoomBooked(
-        offeringId: offeringId,
-        roomNumber: roomNumber,
-        startTime: '${fromPeriod.start}:00',
-        endTime: '${toPeriod.end}:00',
-        bookingDate: bookingDate,
-        section: section,
-      );
-
-      return const BookingResult(
-        success: true,
-        message: 'Slot booked successfully!',
-      );
-    } catch (e) {
-      debugPrint('Error submitting booking request: $e');
-      String msg = e.toString();
-      if (msg.contains('row-level security') || msg.contains('policy')) {
-        msg =
-            'Permission denied. RLS INSERT policy missing on '
-            'room_booking_requests table. Ask admin to add it.';
-      } else if (msg.contains('violates foreign key')) {
-        msg =
-            'Invalid reference. Check that the course offering and '
-            'teacher records exist.';
-      } else if (msg.length > 150) {
-        msg = msg.substring(0, 150);
+      if (res['success'] == true) {
+        return const BookingResult(
+          success: true,
+          message: 'Room request submitted for approval!',
+        );
+      } else {
+        return BookingResult(
+          success: false,
+          message: res['message'] ?? 'Failed to submit room request.',
+        );
       }
-      return BookingResult(success: false, message: msg);
+    } catch (e) {
+      return BookingResult(success: false, message: e.toString());
     }
   }
 
@@ -209,63 +212,28 @@ class RoomBookingService {
         '${customEnd.hour.toString().padLeft(2, '0')}:${customEnd.minute.toString().padLeft(2, '0')}';
 
     try {
-      final conflictMessage = await _findConflictMessage(
-        roomNumber: roomNumber,
-        dayOfWeek: dayOfWeek,
-        startTime: '$startStr:00',
-        endTime: '$endStr:00',
-        bookingDate: bookingDate,
-      );
-
-      if (conflictMessage != null) {
-        return BookingResult(success: false, message: conflictMessage);
-      }
-
-      await SupabaseService.client.from('room_booking_requests').insert({
-        'teacher_user_id': userId,
+      final res = await _postToBackend('/api/teacher-portal/room-requests', {
         'offering_id': offeringId,
         'room_number': roomNumber,
-        'day_of_week': dayOfWeek,
-        'start_period': 'Custom',
-        'end_period': 'Custom',
+        'date': bookingDate,
         'start_time': '$startStr:00',
         'end_time': '$endStr:00',
-        'booking_date': bookingDate,
-        'section': section,
-        'purpose': purpose,
-        'status': 'approved',
+        'purpose': purpose ?? 'Class Booking',
       });
 
-      // Sync to routine_slots so schedule & TV display show this booking
-      await _syncToRoutineSlot(
-        offeringId: offeringId,
-        roomNumber: roomNumber,
-        dayOfWeek: dayOfWeek,
-        startTime: '$startStr:00',
-        endTime: '$endStr:00',
-        bookingDate: bookingDate,
-        section: section,
-      );
-
-      // Fire-and-forget: notify students of the booked room
-      _notifyStudentsRoomBooked(
-        offeringId: offeringId,
-        roomNumber: roomNumber,
-        startTime: '$startStr:00',
-        endTime: '$endStr:00',
-        bookingDate: bookingDate,
-        section: section,
-      );
-
-      return const BookingResult(
-        success: true,
-        message: 'Custom slot booked successfully!',
-      );
+      if (res['success'] == true) {
+        return const BookingResult(
+          success: true,
+          message: 'Custom room request submitted for approval!',
+        );
+      } else {
+        return BookingResult(
+          success: false,
+          message: res['message'] ?? 'Failed to submit custom room request.',
+        );
+      }
     } catch (e) {
-      debugPrint('Error submitting custom booking: $e');
-      String msg = e.toString();
-      if (msg.length > 150) msg = msg.substring(0, 150);
-      return BookingResult(success: false, message: msg);
+      return BookingResult(success: false, message: e.toString());
     }
   }
 
