@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:bcrypt/bcrypt.dart';
 
 import '../config/push_config.dart';
+import '../config/supabase_config.dart';
 import 'background_notification_service.dart';
 import 'profile_service.dart';
 import 'push_notification_service.dart';
@@ -18,40 +21,55 @@ class AuthService {
   static const _recoveryFailureMessage =
       'We could not verify those account details.';
 
-  /// Sign in by querying the `profiles` table and verifying the bcrypt hash.
+  /// Sign in by making an HTTP POST request to /api/auth/login.
   ///
   /// Returns a Map with keys: `success`, `user_id`, `role`, `email`, `message`.
   static Future<Map<String, dynamic>> signIn({
     required String email,
     required String password,
   }) async {
+    final client = HttpClient();
     try {
-      final response = await SupabaseCore.from('profiles')
-          .select('user_id, email, password_hash, role, is_active')
-          .eq('email', email.trim().toLowerCase())
-          .maybeSingle()
-          .timeout(const Duration(seconds: 15));
+      final uri = Uri.parse('${SupabaseConfig.backendUrl}/api/auth/login');
+      final request = await client.postUrl(uri).timeout(const Duration(seconds: 15));
+      request.headers.contentType = ContentType.json;
+      request.headers.set('x-client-type', 'mobile');
+      request.write(jsonEncode({
+        'email': email,
+        'password': password,
+      }));
 
-      if (response == null) {
-        return {'success': false, 'message': 'Invalid email or password'};
+      final response = await request.close().timeout(const Duration(seconds: 15));
+      final responseBody = await response.transform(utf8.decoder).join();
+
+      if (response.statusCode != 200) {
+        try {
+          final errJson = jsonDecode(responseBody);
+          return {
+            'success': false,
+            'message': errJson['error'] ?? 'Login failed (${response.statusCode})',
+          };
+        } catch (_) {
+          return {
+            'success': false,
+            'message': 'Login failed with status code ${response.statusCode}',
+          };
+        }
       }
 
-      final isActive = response['is_active'] as bool? ?? false;
-      if (!isActive) {
+      final resJson = jsonDecode(responseBody);
+      if (resJson['success'] != true || resJson['data'] == null) {
         return {
           'success': false,
-          'message': 'Account is deactivated. Contact admin.',
+          'message': resJson['error'] ?? 'Invalid email or password',
         };
       }
 
-      final storedHash = response['password_hash'] as String? ?? '';
-      if (!BCrypt.checkpw(password, storedHash)) {
-        return {'success': false, 'message': 'Invalid email or password'};
-      }
-
-      final userId = (response['user_id'] ?? '').toString();
-      final role = (response['role'] ?? '').toString();
-      final userEmail = (response['email'] ?? email).toString();
+      final data = resJson['data'] as Map<String, dynamic>;
+      final userId = (data['id'] ?? '').toString();
+      final role = (data['role'] ?? '').toString().toUpperCase();
+      final userEmail = (data['email'] ?? email).toString();
+      final token = (data['token'] ?? '').toString();
 
       // Save session locally
       await SessionService.saveSession(
@@ -59,6 +77,10 @@ class AuthService {
         email: userEmail,
         role: role,
       ).timeout(const Duration(seconds: 5));
+
+      final prefs = await SupabaseCore.ensurePrefs();
+      await prefs.setString('user_token', token);
+
       PushConfig.loginUser(userId);
       // Keep login responsive even if FCM token registration is slow.
       unawaited(
@@ -66,14 +88,6 @@ class AuthService {
             .timeout(const Duration(seconds: 5))
             .catchError((_) {}),
       );
-
-      // Update last_login (non-critical)
-      try {
-        await SupabaseCore.from('profiles')
-            .update({'last_login': DateTime.now().toUtc().toIso8601String()})
-            .eq('user_id', userId)
-            .timeout(const Duration(seconds: 5));
-      } catch (_) {}
 
       return {
         'success': true,
@@ -89,6 +103,8 @@ class AuthService {
       };
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
+    } finally {
+      client.close();
     }
   }
 
