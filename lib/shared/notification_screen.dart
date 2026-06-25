@@ -7,6 +7,7 @@ import '../../services/class_reminder_service.dart';
 import '../../services/local_notification_service.dart';
 import '../../services/notification_provider.dart';
 import '../../services/notification_service.dart';
+import '../../services/session_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/animated_components.dart';
 
@@ -26,11 +27,19 @@ class NotificationScreen extends StatelessWidget {
     await provider.markRead(notification.id);
     if (!context.mounted) return;
 
-    if (notification.type == 'geo_attendance_open') {
+    final currentRole = SessionService.currentRole?.toUpperCase();
+    final isTeacherRole = currentRole == 'TEACHER' || currentRole == 'HEAD';
+    if (notification.type == 'geo_attendance_open' && !isTeacherRole) {
+      final metadata = notification.metadata;
       await Navigator.push(
         context,
         SmoothPageRoute(
-          page: const StudentGeoAttendanceScreen(),
+          page: StudentGeoAttendanceScreen(
+            initialRoomId: metadata['geo_room_id']?.toString(),
+            initialCourseCode: metadata['course_code']?.toString(),
+            initialSection: metadata['geo_room_section']?.toString(),
+            initialTargetTerm: notification.targetYearTerm,
+          ),
         ),
       );
       return;
@@ -106,11 +115,7 @@ class NotificationScreen extends StatelessWidget {
                           color: config.color.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Icon(
-                          config.icon,
-                          color: config.color,
-                          size: 22,
-                        ),
+                        child: Icon(config.icon, color: config.color, size: 22),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -127,8 +132,9 @@ class NotificationScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              DateFormat('MMM d, yyyy • h:mm a')
-                                  .format(notification.createdAt),
+                              DateFormat(
+                                'MMM d, yyyy • h:mm a',
+                              ).format(notification.createdAt),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isDarkMode
@@ -449,7 +455,8 @@ class NotificationScreen extends StatelessWidget {
           return _NotificationCard(
             notification: n,
             isDarkMode: isDarkMode,
-            onTap: () => _handleNotificationTap(context, n, provider, isDarkMode),
+            onTap: () =>
+                _handleNotificationTap(context, n, provider, isDarkMode),
           );
         },
       ),
@@ -828,6 +835,16 @@ _TypeConfig _typeConfig(String type) {
       Icons.menu_book_rounded,
       AppColors.info,
       'Course',
+    ),
+    'course_assigned' => _TypeConfig(
+      Icons.assignment_ind_rounded,
+      AppColors.primary,
+      'Course',
+    ),
+    'room_request_submitted' => _TypeConfig(
+      Icons.meeting_room_rounded,
+      AppColors.info,
+      'Request',
     ),
     _ => _TypeConfig(Icons.notifications_rounded, AppColors.primary, 'Update'),
   };

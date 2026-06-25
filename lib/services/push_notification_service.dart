@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -108,14 +109,24 @@ class PushNotificationService {
     switch (request.type) {
       case _PushNavigationType.studentGeoAttendance:
         final role = SessionService.currentRole;
-        if (role == 'TEACHER' || role == 'HEAD') return;
+        if (role == 'TEACHER' || role == 'HEAD') {
+          await navigator.push(
+            SmoothPageRoute(page: const NotificationScreen()),
+          );
+          return;
+        }
         await navigator.push(
-          SmoothPageRoute(page: const StudentGeoAttendanceScreen()),
+          SmoothPageRoute(
+            page: StudentGeoAttendanceScreen(
+              initialRoomId: request.roomId,
+              initialCourseCode: request.courseCode,
+              initialSection: request.section,
+              initialTargetTerm: request.targetTerm,
+            ),
+          ),
         );
       case _PushNavigationType.notificationInbox:
-        await navigator.push(
-          SmoothPageRoute(page: const NotificationScreen()),
-        );
+        await navigator.push(SmoothPageRoute(page: const NotificationScreen()));
     }
   }
 
@@ -350,27 +361,75 @@ enum _PushNavigationType { studentGeoAttendance, notificationInbox }
 
 class _PushNavigationRequest {
   final _PushNavigationType type;
+  final String? roomId;
+  final String? courseCode;
+  final String? section;
+  final String? targetTerm;
 
-  const _PushNavigationRequest._(this.type);
+  const _PushNavigationRequest._(
+    this.type, {
+    this.roomId,
+    this.courseCode,
+    this.section,
+    this.targetTerm,
+  });
 
-  factory _PushNavigationRequest.studentGeoAttendance() =>
-      const _PushNavigationRequest._(_PushNavigationType.studentGeoAttendance);
+  factory _PushNavigationRequest.studentGeoAttendance({
+    String? roomId,
+    String? courseCode,
+    String? section,
+    String? targetTerm,
+  }) => _PushNavigationRequest._(
+    _PushNavigationType.studentGeoAttendance,
+    roomId: roomId,
+    courseCode: courseCode,
+    section: section,
+    targetTerm: targetTerm,
+  );
 
   factory _PushNavigationRequest.notificationInbox() =>
       const _PushNavigationRequest._(_PushNavigationType.notificationInbox);
 
   static _PushNavigationRequest? fromData(Map<String, dynamic>? data) {
-    final type =
-        _readString(data, 'type') ?? _readString(data, 'notification_type');
-    final openScreen =
-        _readString(data, 'open_screen') ?? _readString(data, 'target_screen');
+    final metadata = _readMetadata(data);
+    String? readAny(List<String> keys) {
+      for (final key in keys) {
+        final value = _readString(data, key) ?? _readString(metadata, key);
+        if (value != null) return value;
+      }
+      return null;
+    }
+
+    final type = readAny(['type', 'notification_type']);
+    final openScreen = readAny(['open_screen', 'target_screen']);
 
     if (type == 'geo_attendance_open' ||
         openScreen == 'student_geo_attendance') {
-      return _PushNavigationRequest.studentGeoAttendance();
+      return _PushNavigationRequest.studentGeoAttendance(
+        roomId: readAny(['geo_room_id', 'room_id']),
+        courseCode: readAny(['course_code', 'courseCode']),
+        section: readAny(['geo_room_section', 'section']),
+        targetTerm: readAny(['target_year_term', 'term']),
+      );
     }
 
     return _PushNavigationRequest.notificationInbox();
+  }
+
+  static Map<String, dynamic>? _readMetadata(Map<String, dynamic>? data) {
+    final raw = data?['metadata'];
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   static String? _readString(Map<String, dynamic>? data, String key) {

@@ -120,7 +120,24 @@ class NotificationProvider extends ChangeNotifier {
       final String? section = student?['section'] as String?;
 
       // Build enrolled course codes (for students and teachers)
-      List<String> enrolledCodes = [];
+      final enrolledCodes = <String>{};
+      try {
+        final enrollments = await SupabaseCore.from('enrollments')
+            .select('course_offerings(courses(code))')
+            .eq('student_user_id', userId);
+
+        enrolledCodes.addAll(
+          (enrollments as List).map((row) {
+            final map = row as Map<String, dynamic>;
+            final offering = map['course_offerings'] as Map<String, dynamic>?;
+            final courses = offering?['courses'] as Map<String, dynamic>?;
+            return courses?['code'] as String?;
+          }).whereType<String>(),
+        );
+      } catch (e) {
+        debugPrint('[NotificationProvider] enrollment code sync error: $e');
+      }
+
       if (term != null) {
         final offerings = await SupabaseCore.from(
           'course_offerings',
@@ -152,7 +169,6 @@ class NotificationProvider extends ChangeNotifier {
         role: role,
         term: term,
         section: section,
-        enrolledCodes: enrolledCodes,
         // Pass the current Supabase session so the background isolate can
         // authenticate its own SupabaseClient and read RLS-protected rows.
         sessionJson: () {
@@ -160,6 +176,7 @@ class NotificationProvider extends ChangeNotifier {
           if (session == null) return null;
           return jsonEncode(session.toJson());
         }(),
+        enrolledCodes: enrolledCodes.toList(),
       );
     } catch (e) {
       debugPrint('[NotificationProvider] _syncBackgroundUserContext error: $e');
@@ -278,7 +295,9 @@ class NotificationProvider extends ChangeNotifier {
     NotificationService.subscribe((newNotif) {
       _realtimeRefreshDebounceTimer?.cancel();
       _realtimeRefreshDebounceTimer = Timer(
-        const Duration(milliseconds: 1200),
+        // 300ms debounce: fast enough to feel instant, slow enough to avoid
+        // double-fetching if multiple rows are inserted in rapid succession.
+        const Duration(milliseconds: 300),
         () => unawaited(_loadNotifications(silent: true, notifyForNew: true)),
       );
       debugPrint('[Notifications] New: ${newNotif.title}');

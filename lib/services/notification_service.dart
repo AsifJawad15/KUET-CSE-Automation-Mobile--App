@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/push_notification_service.dart';
 import '../services/session_service.dart';
 import '../services/supabase_core.dart';
+import '../utils/course_utils.dart';
 
 // ─────────────────────────────────────────────────────────────
 // AppNotification model
@@ -139,6 +140,7 @@ class NotificationService {
               role: context.role,
               term: context.term,
               section: context.section,
+              rollNo: context.rollNo,
               enrolledCodesUpper: context.enrolledCodesUpper,
             ),
           )
@@ -178,6 +180,7 @@ class NotificationService {
     String? role,
     String? term,
     String? section,
+    String? rollNo,
     Set<String> enrolledCodesUpper = const <String>{},
   }) {
     String? normalize(String? value) => value?.trim();
@@ -186,24 +189,61 @@ class NotificationService {
     final targetType = normalizeUpper(n.targetType) ?? '';
     final targetValue = normalize(n.targetValue);
     final targetValueUpper = normalizeUpper(n.targetValue);
-    final targetYearTerm = normalize(n.targetYearTerm);
+    final targetYearTerm = _normalizeTerm(normalize(n.targetYearTerm));
 
     final userRole = normalizeUpper(role);
-    final userTerm = normalize(term);
+    final userTerm = _normalizeTerm(term);
     final userSection = normalizeUpper(section);
+    final geoSection = normalizeUpper(
+      n.metadata['geo_room_section']?.toString(),
+    );
+    final matchesGeoSection =
+        geoSection == null || _sectionMatchesUser(geoSection, userSection, rollNo);
 
     return switch (targetType) {
       'ALL' => true,
       'ROLE' => targetValueUpper == userRole,
-      'YEAR_TERM' => targetValue == userTerm,
+      'YEAR_TERM' => _normalizeTerm(targetValue) == userTerm,
       // Some older rows may miss target_year_term; keep section-only fallback.
       'SECTION' =>
-        targetValueUpper == userSection &&
+        targetValueUpper != null &&
+            _sectionMatchesUser(targetValueUpper, userSection, rollNo) &&
             (targetYearTerm == null || targetYearTerm == userTerm),
       'COURSE' =>
         targetValueUpper != null &&
-            enrolledCodesUpper.contains(targetValueUpper),
+            (enrolledCodesUpper.contains(targetValueUpper) ||
+                (targetYearTerm != null && targetYearTerm == userTerm)) &&
+            matchesGeoSection,
       'USER' => targetValue == userId,
+      _ => false,
+    };
+  }
+
+  static bool _sectionMatchesUser(
+    String targetSection,
+    String? userSection,
+    String? rollNo,
+  ) {
+    final target = targetSection.trim().toUpperCase();
+    if (target.isEmpty) return true;
+    if (userSection != null && userSection.trim().toUpperCase() == target) {
+      return true;
+    }
+
+    final digits = CourseUtils.extractDigits(rollNo ?? '');
+    if (digits.isEmpty) return false;
+    final suffix = int.tryParse(
+      digits.length >= 3 ? digits.substring(digits.length - 3) : digits,
+    );
+    if (suffix == null) return false;
+
+    return switch (target) {
+      'A' => suffix >= 1 && suffix <= 60,
+      'B' => suffix >= 61 && suffix <= 121,
+      'A1' => suffix >= 1 && suffix <= 30,
+      'A2' => suffix >= 31 && suffix <= 60,
+      'B1' => suffix >= 61 && suffix <= 90,
+      'B2' => suffix >= 91 && suffix <= 121,
       _ => false,
     };
   }
@@ -400,9 +440,9 @@ class NotificationService {
     final userId = SessionService.currentUserId;
     if (userId == null) return;
 
-    final normalizedTerm = _cleanText(term);
+    final normalizedTerm =
+        _deriveTermFromCourseCode(courseCode) ?? _normalizeTerm(term);
     if (normalizedTerm == null) return;
-    final normalizedSection = _normalizeGeoAttendanceSection(section);
 
     final sectionLabel = _formatGeoAttendanceSectionLabel(section);
     final title = '📍 Attendance Open — $courseCode$sectionLabel';
@@ -426,19 +466,17 @@ class NotificationService {
     // ignore: unused_local_variable
     final _ = collapseId;
 
-    final studentTargetType = normalizedSection != null
-        ? 'SECTION'
-        : 'YEAR_TERM';
-    final studentTargetValue = normalizedSection ?? normalizedTerm;
-    final studentTargetYearTerm = normalizedSection != null
-        ? normalizedTerm
-        : null;
+    final normalizedSection = _normalizeGeoAttendanceSection(section);
+    final studentTargetType = normalizedSection == null ? 'COURSE' : 'SECTION';
+    final studentTargetValue =
+        normalizedSection ?? courseCode.trim().toUpperCase();
+    final studentTargetYearTerm = normalizedTerm;
 
-    // Notify students directly by section/term so remote push delivery matches
-    // the in-app audience even when course-target resolution is incomplete.
-    // Also send a direct USER notification to the teacher who opened the room.
+    // Geo room creation must notify both audiences in app + push:
+    // students by course/section year-term, and the teacher directly by USER target.
+    // createNotification dispatches each inserted row through FCM as well.
     await Future.wait<Object?>([
-      // 1. Notification for targeted students
+      // 1. In-app + push notification for targeted students.
       createNotification(
         type: 'geo_attendance_open',
         title: title,
@@ -454,7 +492,7 @@ class NotificationService {
         );
         return null;
       }),
-      // 2. In-app notification for the teacher who opened the room (USER target)
+      // 2. In-app + push notification for the teacher who opened the room.
       createNotification(
         type: 'geo_attendance_open',
         title: '📍 Attendance Room Opened — $courseCode$sectionLabel',
@@ -472,14 +510,41 @@ class NotificationService {
         return null;
       }),
     ]);
-
-    // Push dispatch is now handled server-side by the Supabase Edge Function.
   }
 
   static String? _cleanText(String? value) {
     final trimmed = value?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
     return trimmed;
+  }
+
+  static String? _deriveTermFromCourseCode(String? courseCode) {
+    final cleaned = _cleanText(courseCode);
+    if (cleaned == null) return null;
+    final match = RegExp(r'\d\d').firstMatch(cleaned);
+    if (match == null) return null;
+    final digits = match.group(0)!;
+    return '${digits[0]}-${digits[1]}';
+  }
+
+  static String? _normalizeTerm(String? value) {
+    final cleaned = _cleanText(value);
+    if (cleaned == null) return null;
+
+    final direct = RegExp(r'^([1-4])\s*[-/]\s*([1-2])$').firstMatch(cleaned);
+    if (direct != null) {
+      return '${direct.group(1)}-${direct.group(2)}';
+    }
+
+    final named = RegExp(
+      r'(?:year|level|term|semester)?\s*([1-4])\D+(?:term|semester)?\s*([1-2])',
+      caseSensitive: false,
+    ).firstMatch(cleaned);
+    if (named != null) {
+      return '${named.group(1)}-${named.group(2)}';
+    }
+
+    return cleaned;
   }
 
   static String? _normalizeGeoAttendanceSection(String? section) {
@@ -648,7 +713,7 @@ class NotificationService {
     ).select('role').eq('user_id', userId).maybeSingle();
     final studentFuture = SupabaseCore.from(
       'students',
-    ).select('term, section').eq('user_id', userId).maybeSingle();
+    ).select('term, section, roll_no').eq('user_id', userId).maybeSingle();
 
     final results = await Future.wait<dynamic>([profileFuture, studentFuture]);
     final profile = results[0] as Map<String, dynamic>?;
@@ -657,8 +722,27 @@ class NotificationService {
     final role = (profile?['role'] as String?)?.trim();
     final term = (student?['term'] as String?)?.trim();
     final section = (student?['section'] as String?)?.trim();
+    final rollNo = (student?['roll_no'] as String?)?.trim();
 
     final enrolledCodesUpper = <String>{};
+    try {
+      final enrollments = await SupabaseCore.from(
+        'enrollments',
+      ).select('course_offerings(courses(code))').eq('student_user_id', userId);
+
+      for (final enrollment in enrollments as List) {
+        final map = enrollment as Map<String, dynamic>;
+        final offering = map['course_offerings'] as Map<String, dynamic>?;
+        final courses = offering?['courses'] as Map<String, dynamic>?;
+        final code = courses?['code'] as String?;
+        if (code != null && code.trim().isNotEmpty) {
+          enrolledCodesUpper.add(code.trim().toUpperCase());
+        }
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] enrollmentCodes error: $e');
+    }
+
     if (term != null && term.isNotEmpty) {
       try {
         final offerings = await SupabaseCore.from(
@@ -683,6 +767,7 @@ class NotificationService {
       role: role,
       term: term,
       section: section,
+      rollNo: rollNo,
       enrolledCodesUpper: enrolledCodesUpper,
       fetchedAt: now,
     );
@@ -780,6 +865,7 @@ class _NotificationVisibilityContext {
   final String? role;
   final String? term;
   final String? section;
+  final String? rollNo;
   final Set<String> enrolledCodesUpper;
   final DateTime fetchedAt;
 
@@ -788,6 +874,7 @@ class _NotificationVisibilityContext {
     required this.role,
     required this.term,
     required this.section,
+    required this.rollNo,
     required this.enrolledCodesUpper,
     required this.fetchedAt,
   });

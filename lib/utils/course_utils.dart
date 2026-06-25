@@ -42,6 +42,20 @@ class CourseUtils {
     return int.tryParse(digits[1]) ?? 1;
   }
 
+  /// KUET CSE convention used by the app's attendance flow:
+  /// odd course numbers are theory, even course numbers are lab/sessional.
+  static bool? isLabCourseCode(String? courseCode) {
+    if (courseCode == null || courseCode.trim().isEmpty) return null;
+    final digits = extractDigits(courseCode);
+    if (digits.isEmpty) return null;
+    final lastDigit = int.tryParse(digits[digits.length - 1]);
+    if (lastDigit == null) return null;
+    return lastDigit.isEven;
+  }
+
+  static bool isTheoryCourseCode(String? courseCode) =>
+      isLabCourseCode(courseCode) == false;
+
   /// Check whether a course code matches the given year-term.
   ///
   /// `"CSE 3201"` → digits `"3201"` → starts with `"32"` → matches year=3, term=2.
@@ -62,25 +76,27 @@ class CourseUtils {
 
   /// Derive section from roll number.
   ///
-  /// Last 3 digits: 001-060 → `"A"`, 061+ → `"B"`
+  /// Last 3 digits: 001-060 → `"A"`, 061-121 → `"B"`
   static String sectionFromRoll(String? rollNo) {
     if (rollNo == null || rollNo.isEmpty) return 'A';
     final digits = extractDigits(rollNo);
     if (digits.isEmpty) return 'A';
-    final last3 =
-        digits.length >= 3 ? digits.substring(digits.length - 3) : digits;
+    final last3 = digits.length >= 3
+        ? digits.substring(digits.length - 3)
+        : digits;
     final num = int.tryParse(last3) ?? 1;
     return num <= 60 ? 'A' : 'B';
   }
 
   /// Derive sessional group from roll number.
   ///
-  /// `001-030 → A1`, `031-060 → A2`, `061-090 → B1`, `091-120 → B2`
+  /// `001-030 → A1`, `031-060 → A2`, `061-090 → B1`, `091-121 → B2`
   static String sessionalGroupFromRoll(String rollNo) {
     final digits = extractDigits(rollNo);
     if (digits.isEmpty) return 'A1';
-    final last3 =
-        digits.length >= 3 ? digits.substring(digits.length - 3) : digits;
+    final last3 = digits.length >= 3
+        ? digits.substring(digits.length - 3)
+        : digits;
     final num = int.tryParse(last3) ?? 1;
     if (num <= 30) return 'A1';
     if (num <= 60) return 'A2';

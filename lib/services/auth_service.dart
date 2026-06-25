@@ -29,17 +29,21 @@ class AuthService {
     required String password,
   }) async {
     final client = HttpClient();
+    final normalizedEmail = email.trim().toLowerCase();
     try {
       final uri = Uri.parse('${SupabaseConfig.backendUrl}/api/auth/login');
-      final request = await client.postUrl(uri).timeout(const Duration(seconds: 15));
+      final request = await client
+          .postUrl(uri)
+          .timeout(const Duration(seconds: 15));
       request.headers.contentType = ContentType.json;
       request.headers.set('x-client-type', 'mobile');
-      request.write(jsonEncode({
-        'email': email,
-        'password': password,
-      }));
+      request.write(
+        jsonEncode({'email': normalizedEmail, 'password': password}),
+      );
 
-      final response = await request.close().timeout(const Duration(seconds: 15));
+      final response = await request.close().timeout(
+        const Duration(seconds: 15),
+      );
       final responseBody = await response.transform(utf8.decoder).join();
 
       if (response.statusCode != 200) {
@@ -47,7 +51,8 @@ class AuthService {
           final errJson = jsonDecode(responseBody);
           return {
             'success': false,
-            'message': errJson['error'] ?? 'Login failed (${response.statusCode})',
+            'message':
+                errJson['error'] ?? 'Login failed (${response.statusCode})',
           };
         } catch (_) {
           return {
@@ -68,25 +73,14 @@ class AuthService {
       final data = resJson['data'] as Map<String, dynamic>;
       final userId = (data['id'] ?? '').toString();
       final role = (data['role'] ?? '').toString().toUpperCase();
-      final userEmail = (data['email'] ?? email).toString();
+      final userEmail = (data['email'] ?? normalizedEmail).toString();
       final token = (data['token'] ?? '').toString();
 
-      // Save session locally
-      await SessionService.saveSession(
+      await _saveSuccessfulSignIn(
         userId: userId,
         email: userEmail,
         role: role,
-      ).timeout(const Duration(seconds: 5));
-
-      final prefs = await SupabaseCore.ensurePrefs();
-      await prefs.setString('user_token', token);
-
-      PushConfig.loginUser(userId);
-      // Keep login responsive even if FCM token registration is slow.
-      unawaited(
-        PushNotificationService.syncUserIdentity()
-            .timeout(const Duration(seconds: 5))
-            .catchError((_) {}),
+        token: token.isEmpty ? null : token,
       );
 
       return {
@@ -96,16 +90,132 @@ class AuthService {
         'email': userEmail,
       };
     } on TimeoutException {
-      return {
-        'success': false,
-        'message':
-            'Sign in timed out. Please check your connection and try again.',
-      };
+      return _signInDirectlyWithSupabase(
+        email: normalizedEmail,
+        password: password,
+      );
+    } on SocketException {
+      return _signInDirectlyWithSupabase(
+        email: normalizedEmail,
+        password: password,
+      );
+    } on HttpException {
+      return _signInDirectlyWithSupabase(
+        email: normalizedEmail,
+        password: password,
+      );
+    } on HandshakeException {
+      return _signInDirectlyWithSupabase(
+        email: normalizedEmail,
+        password: password,
+      );
     } catch (e) {
       return {'success': false, 'message': 'Connection error: ${e.toString()}'};
     } finally {
       client.close();
     }
+  }
+
+  static Future<Map<String, dynamic>> _signInDirectlyWithSupabase({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final profile = await SupabaseCore.from('profiles')
+          .select('user_id, email, role, password_hash, is_active')
+          .eq('email', email)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 15));
+
+      if (profile == null) {
+        return {'success': false, 'message': 'Invalid email or password'};
+      }
+
+      final isActive = profile['is_active'] as bool? ?? false;
+      if (!isActive) {
+        return {
+          'success': false,
+          'message': 'Account is deactivated. Contact admin.',
+        };
+      }
+
+      final passwordHash = profile['password_hash'] as String? ?? '';
+      if (passwordHash.isEmpty || !BCrypt.checkpw(password, passwordHash)) {
+        return {'success': false, 'message': 'Invalid email or password'};
+      }
+
+      final userId = (profile['user_id'] ?? '').toString();
+      final role = (profile['role'] ?? '').toString().toUpperCase();
+      final profileEmail = (profile['email'] ?? email).toString();
+
+      if (userId.isEmpty || role.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Account profile is incomplete. Contact admin.',
+        };
+      }
+
+      await _saveSuccessfulSignIn(
+        userId: userId,
+        email: profileEmail,
+        role: role,
+      );
+
+      unawaited(
+        SupabaseCore.from('profiles')
+            .update({'last_login': DateTime.now().toUtc().toIso8601String()})
+            .eq('user_id', userId)
+            .then((_) {})
+            .catchError((_) {}),
+      );
+
+      return {
+        'success': true,
+        'user_id': userId,
+        'role': role,
+        'email': profileEmail,
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message':
+            'Sign in timed out. Please check your connection and try again.',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message':
+            'Could not reach the login service. Please check your connection and try again.',
+      };
+    }
+  }
+
+  static Future<void> _saveSuccessfulSignIn({
+    required String userId,
+    required String email,
+    required String role,
+    String? token,
+  }) async {
+    await SessionService.saveSession(
+      userId: userId,
+      email: email,
+      role: role,
+    ).timeout(const Duration(seconds: 5));
+
+    final prefs = await SupabaseCore.ensurePrefs();
+    if (token == null || token.isEmpty) {
+      await prefs.remove('user_token');
+    } else {
+      await prefs.setString('user_token', token);
+    }
+
+    PushConfig.loginUser(userId);
+    // Keep login responsive even if FCM token registration is slow.
+    unawaited(
+      PushNotificationService.syncUserIdentity()
+          .timeout(const Duration(seconds: 5))
+          .catchError((_) {}),
+    );
   }
 
   /// Sign out – clears saved session.

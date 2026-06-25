@@ -30,11 +30,14 @@ class _GeoAttendanceFloatingWidgetState
   List<Map<String, dynamic>> _openRooms = [];
   Timer? _refreshTimer;
   Timer? _countdownTimer;
+  Timer? _notificationRoomFetchDebounce;
   RealtimeChannel? _realtimeChannel;
+  NotificationProvider? _notificationProvider;
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   final Set<String> _alertedRoomIds = <String>{};
   bool _visible = false;
+  String _notificationRoomFingerprint = '';
 
   @override
   void initState() {
@@ -65,10 +68,22 @@ class _GeoAttendanceFloatingWidgetState
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<NotificationProvider>();
+    if (_notificationProvider == provider) return;
+    _notificationProvider?.removeListener(_handleNotificationProviderChanged);
+    _notificationProvider = provider;
+    provider.addListener(_handleNotificationProviderChanged);
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _countdownTimer?.cancel();
+    _notificationRoomFetchDebounce?.cancel();
+    _notificationProvider?.removeListener(_handleNotificationProviderChanged);
     GeoAttendancePresenceMonitorService.instance.stop();
     final channel = _realtimeChannel;
     if (channel != null) {
@@ -91,6 +106,30 @@ class _GeoAttendanceFloatingWidgetState
     }
   }
 
+  void _handleNotificationProviderChanged() {
+    final provider = _notificationProvider;
+    if (provider == null) return;
+
+    final fingerprint = provider.notifications
+        .where((notification) => notification.type == 'geo_attendance_open')
+        .map((notification) => notification.metadata['geo_room_id']?.toString())
+        .whereType<String>()
+        .where((roomId) => roomId.trim().isNotEmpty)
+        .toSet()
+        .join('|');
+
+    if (fingerprint.isEmpty || fingerprint == _notificationRoomFingerprint) {
+      return;
+    }
+    _notificationRoomFingerprint = fingerprint;
+
+    _notificationRoomFetchDebounce?.cancel();
+    _notificationRoomFetchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => unawaited(_fetchRooms()),
+    );
+  }
+
   Future<void> _fetchRooms() async {
     try {
       final userId = SupabaseService.currentUserId;
@@ -100,9 +139,14 @@ class _GeoAttendanceFloatingWidgetState
         return;
       }
       debugPrint('GeoFloatingWidget: fetching rooms for $userId');
-      final rooms = await GeoAttendanceService.getOpenRoomsForStudent(
+      final fetchedRooms = await GeoAttendanceService.getOpenRoomsForStudent(
         studentUserId: userId,
       );
+      final notificationRooms = await _getRoomsFromAttendanceNotifications(
+        userId: userId,
+        existingRooms: fetchedRooms,
+      );
+      final rooms = [...fetchedRooms, ...notificationRooms];
       debugPrint('GeoFloatingWidget: got ${rooms.length} rooms');
       GeoAttendancePresenceMonitorService.instance.updateRooms(
         studentUserId: userId,
@@ -146,9 +190,14 @@ class _GeoAttendanceFloatingWidgetState
         ?.toString();
 
     try {
-      final rooms = await GeoAttendanceService.getOpenRoomsForStudent(
+      final fetchedRooms = await GeoAttendanceService.getOpenRoomsForStudent(
         studentUserId: userId,
       );
+      final notificationRooms = await _getRoomsFromAttendanceNotifications(
+        userId: userId,
+        existingRooms: fetchedRooms,
+      );
+      final rooms = [...fetchedRooms, ...notificationRooms];
       GeoAttendancePresenceMonitorService.instance.updateRooms(
         studentUserId: userId,
         rooms: rooms,
@@ -178,6 +227,51 @@ class _GeoAttendanceFloatingWidgetState
     } catch (e) {
       debugPrint('GeoFloatingWidget: realtime change error: $e');
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _getRoomsFromAttendanceNotifications({
+    required String userId,
+    required List<Map<String, dynamic>> existingRooms,
+  }) async {
+    if (!mounted) return const [];
+
+    final existingIds = existingRooms
+        .map((room) => room['id']?.toString())
+        .whereType<String>()
+        .toSet();
+    final provider = context.read<NotificationProvider>();
+    final notifications = provider.notifications
+        .where((notification) => notification.type == 'geo_attendance_open')
+        .where((notification) {
+          final roomId = notification.metadata['geo_room_id']?.toString();
+          return roomId != null &&
+              roomId.trim().isNotEmpty &&
+              !existingIds.contains(roomId);
+        })
+        .take(6)
+        .toList();
+
+    final rooms = <Map<String, dynamic>>[];
+    for (final notification in notifications) {
+      final metadata = notification.metadata;
+      final roomId = metadata['geo_room_id']?.toString();
+      if (roomId == null || roomId.trim().isEmpty) continue;
+
+      final room = await GeoAttendanceService.getOpenRoomForStudentById(
+        studentUserId: userId,
+        roomId: roomId,
+        fallbackCourseCode: metadata['course_code']?.toString(),
+        fallbackSection: metadata['geo_room_section']?.toString(),
+        fallbackTerm: notification.targetYearTerm,
+      );
+      if (room == null) continue;
+
+      final resolvedId = room['id']?.toString();
+      if (resolvedId == null || existingIds.contains(resolvedId)) continue;
+      existingIds.add(resolvedId);
+      rooms.add(room);
+    }
+    return rooms;
   }
 
   void _updateVisibleRooms(List<Map<String, dynamic>> pending) {
@@ -259,6 +353,7 @@ class _GeoAttendanceFloatingWidgetState
       body: 'Your attendance for $courseCode is ready. Please $endLabel.',
       metadata: {
         'course_code': courseCode,
+        'open_screen': 'student_geo_attendance',
         if (room['id'] != null) 'geo_room_id': room['id'].toString(),
         if (rawSection != null && rawSection.isNotEmpty)
           'geo_room_section': rawSection,
@@ -348,7 +443,11 @@ class _GeoAttendanceFloatingWidgetState
           await Navigator.push(
             context,
             SmoothPageRoute(
-              page: const StudentGeoAttendanceScreen(),
+              page: StudentGeoAttendanceScreen(
+                initialRoomId: room?['id']?.toString(),
+                initialCourseCode: code?.toString(),
+                initialSection: section,
+              ),
             ),
           );
           _fetchRooms();

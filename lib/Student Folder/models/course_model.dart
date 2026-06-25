@@ -1,3 +1,5 @@
+import '../../utils/course_utils.dart';
+
 /// Course model for KUET CSE Automation App
 /// Supports both static data and Supabase-fetched data
 class Course {
@@ -40,10 +42,14 @@ class Course {
     final termNum = int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1;
 
     // Parse course type
-    final courseTypeStr =
-        (courseData['course_type'] as String? ?? 'Theory').toLowerCase();
+    final code = courseData['code'] as String? ?? '';
+    final courseTypeStr = (courseData['course_type'] as String? ?? 'Theory')
+        .toLowerCase();
+    final isLabByCode = CourseUtils.isLabCourseCode(code);
     final courseType =
-        courseTypeStr == 'lab' ? CourseType.lab : CourseType.theory;
+        isLabByCode == true || (isLabByCode == null && courseTypeStr == 'lab')
+        ? CourseType.lab
+        : CourseType.theory;
 
     // Parse teachers from course_offerings
     final teachers = <String>[];
@@ -63,7 +69,7 @@ class Course {
 
     return Course(
       id: (courseData['id'] ?? '').toString(),
-      code: courseData['code'] as String? ?? '',
+      code: code,
       title: courseData['title'] as String? ?? '',
       credits: (courseData['credit'] as num?)?.toDouble() ?? 0.0,
       type: courseType,

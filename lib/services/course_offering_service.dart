@@ -39,14 +39,53 @@ class CourseOfferingService {
       return List<Map<String, dynamic>>.from(response as List);
     } catch (e) {
       debugPrint('[CourseOfferingService] ERROR: $e');
+      return _getTeacherAssignedCoursesFallback(userId);
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> _getTeacherAssignedCoursesFallback(
+    String userId,
+  ) async {
+    try {
+      final offeringRows = await SupabaseCore.from('course_offerings')
+          .select('id, course_id, term, session, batch, is_active, created_at')
+          .eq('teacher_user_id', userId)
+          .order('created_at', ascending: false);
+
+      final offerings = List<Map<String, dynamic>>.from(offeringRows as List);
+      final courseIds = offerings
+          .map((row) => row['course_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      if (courseIds.isEmpty) return offerings;
+
+      final courseRows = await SupabaseCore.from('courses')
+          .select('id, code, title, credit, course_type, description')
+          .inFilter('id', courseIds);
+      final coursesById = <String, Map<String, dynamic>>{};
+      for (final row in courseRows as List) {
+        final course = Map<String, dynamic>.from(row as Map);
+        final id = course['id']?.toString();
+        if (id != null) {
+          coursesById[id] = course;
+        }
+      }
+
+      for (final offering in offerings) {
+        offering['courses'] = coursesById[offering['course_id']?.toString()];
+      }
+
+      return offerings;
+    } catch (e) {
+      debugPrint('[CourseOfferingService] fallback ERROR: $e');
       return [];
     }
   }
 
   /// Subscribe to real-time changes on course_offerings for this teacher.
-  static dynamic subscribeToTeacherCourses({
-    required Function() onChanged,
-  }) {
+  static dynamic subscribeToTeacherCourses({required Function() onChanged}) {
     final userId = SessionService.currentUserId;
     if (userId == null) return null;
 
@@ -63,7 +102,8 @@ class CourseOfferingService {
           ),
           callback: (payload) {
             debugPrint(
-                '[Realtime] Teacher courses changed: ${payload.eventType}');
+              '[Realtime] Teacher courses changed: ${payload.eventType}',
+            );
             onChanged();
           },
         )

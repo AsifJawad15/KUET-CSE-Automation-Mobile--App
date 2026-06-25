@@ -9,7 +9,18 @@ import '../../theme/app_colors.dart';
 
 /// Student screen to view open geo-attendance rooms and submit attendance.
 class StudentGeoAttendanceScreen extends StatefulWidget {
-  const StudentGeoAttendanceScreen({super.key});
+  final String? initialRoomId;
+  final String? initialCourseCode;
+  final String? initialSection;
+  final String? initialTargetTerm;
+
+  const StudentGeoAttendanceScreen({
+    super.key,
+    this.initialRoomId,
+    this.initialCourseCode,
+    this.initialSection,
+    this.initialTargetTerm,
+  });
 
   @override
   State<StudentGeoAttendanceScreen> createState() =>
@@ -78,10 +89,30 @@ class _StudentGeoAttendanceScreenState extends State<StudentGeoAttendanceScreen>
       final rooms = await GeoAttendanceService.getOpenRoomsForStudent(
         studentUserId: userId,
       );
+      final visibleRooms = List<Map<String, dynamic>>.from(rooms);
+      final initialRoomId = widget.initialRoomId?.trim();
+
+      if (initialRoomId != null &&
+          initialRoomId.isNotEmpty &&
+          !visibleRooms.any(
+            (room) => room['id']?.toString() == initialRoomId,
+          )) {
+        final focusedRoom =
+            await GeoAttendanceService.getOpenRoomForStudentById(
+              studentUserId: userId,
+              roomId: initialRoomId,
+              fallbackCourseCode: widget.initialCourseCode,
+              fallbackSection: widget.initialSection,
+              fallbackTerm: widget.initialTargetTerm,
+            );
+        if (focusedRoom != null) {
+          visibleRooms.insert(0, focusedRoom);
+        }
+      }
 
       if (mounted) {
         setState(() {
-          _openRooms = rooms;
+          _openRooms = visibleRooms;
           _isLoading = false;
         });
       }
@@ -764,39 +795,25 @@ class _StudentGeoAttendanceScreenState extends State<StudentGeoAttendanceScreen>
             const SizedBox(height: 12),
 
             // Details
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Icon(
+                _detailItem(
                   Icons.person_outline,
-                  size: 15,
-                  color: AppColors.textMuted,
-                ),
-                const SizedBox(width: 4),
-                Text(
                   teacherName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary(isDarkMode),
-                  ),
+                  isDarkMode,
+                  maxWidth: 165,
                 ),
-                if (roomNumber.isNotEmpty) ...[
-                  const SizedBox(width: 12),
-                  Icon(
+                if (roomNumber.isNotEmpty)
+                  _detailItem(
                     Icons.room_outlined,
-                    size: 15,
-                    color: AppColors.textMuted,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
                     'Room $roomNumber',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary(isDarkMode),
-                    ),
+                    isDarkMode,
+                    maxWidth: 110,
                   ),
-                ],
-                if (roomSection.isNotEmpty) ...[
-                  const SizedBox(width: 12),
+                if (roomSection.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -815,16 +832,11 @@ class _StudentGeoAttendanceScreenState extends State<StudentGeoAttendanceScreen>
                       ),
                     ),
                   ),
-                ],
-                const SizedBox(width: 12),
-                Icon(Icons.schedule, size: 15, color: AppColors.textMuted),
-                const SizedBox(width: 4),
-                Text(
+                _detailItem(
+                  Icons.schedule,
                   _formatTimeRange(startTime, endTime),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary(isDarkMode),
-                  ),
+                  isDarkMode,
+                  maxWidth: 130,
                 ),
               ],
             ),
@@ -920,6 +932,35 @@ class _StudentGeoAttendanceScreenState extends State<StudentGeoAttendanceScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _detailItem(
+    IconData icon,
+    String text,
+    bool isDarkMode, {
+    required double maxWidth,
+  }) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppColors.textMuted),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary(isDarkMode),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -4,7 +4,6 @@ import '../../utils/course_utils.dart';
 import '../models/enrolled_student.dart';
 
 class TeacherCourseService {
-
   /// Fetch students for a course by deriving the term from courseCode
   /// and querying the students table directly.
   static Future<List<EnrolledStudent>> getEnrolledStudents({
@@ -24,14 +23,15 @@ class TeacherCourseService {
           .eq('term', term);
 
       var students = (studentData as List)
-          .map((row) =>
-              EnrolledStudent.fromStudentRow(row as Map<String, dynamic>))
+          .map(
+            (row) =>
+                EnrolledStudent.fromStudentRow(row as Map<String, dynamic>),
+          )
           .toList();
 
       // Filter by section in Dart if provided
       if (section != null && section.isNotEmpty && section != 'All') {
-        students =
-            students.where((s) => s.derivedSection == section).toList();
+        students = students.where((s) => s.derivedSection == section).toList();
       }
 
       // Sort by roll number
@@ -51,9 +51,9 @@ class TeacherCourseService {
   }) async {
     try {
       final term = CourseUtils.termFromCourseCode(courseCode);
-      final data = await SupabaseService.from('students')
-          .select('user_id')
-          .eq('term', term);
+      final data = await SupabaseService.from(
+        'students',
+      ).select('user_id').eq('term', term);
       return (data as List).length;
     } catch (e) {
       return 0;
@@ -61,13 +61,11 @@ class TeacherCourseService {
   }
 
   /// Get attendance count (number of class sessions held)
-  static Future<int> getAttendanceCount({
-    required String offeringId,
-  }) async {
+  static Future<int> getAttendanceCount({required String offeringId}) async {
     try {
-      final data = await SupabaseService.from('class_sessions')
-          .select('id')
-          .eq('offering_id', offeringId);
+      final data = await SupabaseService.from(
+        'class_sessions',
+      ).select('id').eq('offering_id', offeringId);
 
       return (data as List).length;
     } catch (e) {
@@ -76,20 +74,18 @@ class TeacherCourseService {
   }
 
   /// Get total expected classes from course credit
-  static Future<int> getExpectedClasses({
-    required String courseCode,
-  }) async {
+  static Future<int> getExpectedClasses({required String courseCode}) async {
     try {
-      final data = await SupabaseService.from('courses')
-          .select('credit, course_type')
-          .eq('code', courseCode)
-          .single();
+      final data = await SupabaseService.from(
+        'courses',
+      ).select('credit, course_type').eq('code', courseCode).single();
 
       final credits = (data['credit'] as num).toDouble();
       final type = (data['course_type'] as String? ?? 'Theory').toLowerCase();
+      final isLabByCode = CourseUtils.isLabCourseCode(courseCode);
 
       // Theory (3 credits) ≈ 18 classes, Lab (1.5 credits) ≈ 10 sessions
-      if (type == 'lab') {
+      if (isLabByCode == true || (isLabByCode == null && type == 'lab')) {
         return (credits * 6.67).round();
       }
       return (credits * 6).round();
@@ -128,9 +124,9 @@ class TeacherCourseService {
     required String sessionId,
   }) async {
     try {
-      final data = await SupabaseService.from('attendance_records')
-          .select('status')
-          .eq('session_id', sessionId);
+      final data = await SupabaseService.from(
+        'attendance_records',
+      ).select('status').eq('session_id', sessionId);
 
       final records = data as List;
       int present = 0, absent = 0, late = 0;
@@ -170,70 +166,75 @@ class TeacherCourseService {
     required String? roomNumber,
     required Map<String, String> attendance, // studentUserId -> status
   }) async {
-      final teacherId = SupabaseService.currentUserId;
-      if (teacherId == null) throw Exception('Not logged in');
+    final teacherId = SupabaseService.currentUserId;
+    if (teacherId == null) throw Exception('Not logged in');
 
-      // 1. Create class session
-      final sessionInsert = <String, dynamic>{
-        'offering_id': offeringId,
-        'starts_at': date.toIso8601String(),
-        'ends_at': date.add(const Duration(hours: 1)).toIso8601String(),
-      };
-      // Only set room_number if valid (FK constraint)
-      if (roomNumber != null && roomNumber.isNotEmpty) {
-        sessionInsert['room_number'] = roomNumber;
-      }
+    // 1. Create class session
+    final sessionInsert = <String, dynamic>{
+      'offering_id': offeringId,
+      'starts_at': date.toIso8601String(),
+      'ends_at': date.add(const Duration(hours: 1)).toIso8601String(),
+    };
+    // Only set room_number if valid (FK constraint)
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      sessionInsert['room_number'] = roomNumber;
+    }
 
-      final sessionData = await SupabaseService.from('class_sessions')
-          .insert(sessionInsert)
-          .select('id')
-          .single();
-      final sessionId = sessionData['id'] as String;
+    final sessionData = await SupabaseService.from(
+      'class_sessions',
+    ).insert(sessionInsert).select('id').single();
+    final sessionId = sessionData['id'] as String;
 
-      // 2. Ensure enrollment records exist (upsert)
-      final studentIds = attendance.keys.toList();
-      final existingEnrollments = await SupabaseService.from('enrollments')
-          .select('id, student_user_id')
-          .eq('offering_id', offeringId)
-          .inFilter('student_user_id', studentIds);
+    // 2. Ensure enrollment records exist (upsert)
+    final studentIds = attendance.keys.toList();
+    final existingEnrollments = await SupabaseService.from('enrollments')
+        .select('id, student_user_id')
+        .eq('offering_id', offeringId)
+        .inFilter('student_user_id', studentIds);
 
-      final enrollmentMap = <String, String>{}; // studentUserId -> enrollmentId
-      for (final e in (existingEnrollments as List)) {
-        enrollmentMap[e['student_user_id'] as String] = e['id'] as String;
-      }
+    final enrollmentMap = <String, String>{}; // studentUserId -> enrollmentId
+    for (final e in (existingEnrollments as List)) {
+      enrollmentMap[e['student_user_id'] as String] = e['id'] as String;
+    }
 
-      // Create missing enrollments
-      final missing = studentIds.where((id) => !enrollmentMap.containsKey(id)).toList();
-      if (missing.isNotEmpty) {
-        final toInsert = missing
-            .map((sid) => {
-                  'offering_id': offeringId,
-                  'student_user_id': sid,
-                  'enrollment_status': 'ENROLLED',
-                })
-            .toList();
-
-        final inserted = await SupabaseService.from('enrollments')
-            .insert(toInsert)
-            .select('id, student_user_id');
-
-        for (final e in (inserted as List)) {
-          enrollmentMap[e['student_user_id'] as String] = e['id'] as String;
-        }
-      }
-
-      // 3. Insert attendance records
-      final records = attendance.entries
-          .where((e) => enrollmentMap.containsKey(e.key))
-          .map((e) => {
-                'session_id': sessionId,
-                'enrollment_id': enrollmentMap[e.key],
-                'status': e.value,
-                'marked_by_teacher_user_id': teacherId,
-              })
+    // Create missing enrollments
+    final missing = studentIds
+        .where((id) => !enrollmentMap.containsKey(id))
+        .toList();
+    if (missing.isNotEmpty) {
+      final toInsert = missing
+          .map(
+            (sid) => {
+              'offering_id': offeringId,
+              'student_user_id': sid,
+              'enrollment_status': 'ENROLLED',
+            },
+          )
           .toList();
 
-      await SupabaseService.from('attendance_records').insert(records);
+      final inserted = await SupabaseService.from(
+        'enrollments',
+      ).insert(toInsert).select('id, student_user_id');
+
+      for (final e in (inserted as List)) {
+        enrollmentMap[e['student_user_id'] as String] = e['id'] as String;
+      }
+    }
+
+    // 3. Insert attendance records
+    final records = attendance.entries
+        .where((e) => enrollmentMap.containsKey(e.key))
+        .map(
+          (e) => {
+            'session_id': sessionId,
+            'enrollment_id': enrollmentMap[e.key],
+            'status': e.value,
+            'marked_by_teacher_user_id': teacherId,
+          },
+        )
+        .toList();
+
+    await SupabaseService.from('attendance_records').insert(records);
   }
 
   /// Save announcement to Supabase notices table

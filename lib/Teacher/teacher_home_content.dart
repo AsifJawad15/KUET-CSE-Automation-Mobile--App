@@ -77,7 +77,9 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
 
         final typeStr = (course['course_type'] as String? ?? 'Theory')
             .toLowerCase();
-        final courseType = typeStr == 'lab'
+        final isLabByCode = CourseUtils.isLabCourseCode(courseCode);
+        final courseType =
+            isLabByCode == true || (isLabByCode == null && typeStr == 'lab')
             ? CourseType.lab
             : CourseType.theory;
         final credit = (course['credit'] as num?)?.toDouble() ?? 3.0;
@@ -653,9 +655,7 @@ class _TeacherHomeContentState extends State<TeacherHomeContent> {
       onTap: () {
         Navigator.push(
           context,
-          SmoothPageRoute(
-            page: CourseDetailScreen(course: course),
-          ),
+          SmoothPageRoute(page: CourseDetailScreen(course: course)),
         );
       },
       child: Container(

@@ -113,7 +113,9 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
         final termNum = CourseUtils.termFromCode(courseCode);
         final typeStr = (course['course_type'] as String? ?? 'Theory')
             .toLowerCase();
-        final courseType = typeStr == 'lab'
+        final isLabByCode = CourseUtils.isLabCourseCode(courseCode);
+        final courseType =
+            isLabByCode == true || (isLabByCode == null && typeStr == 'lab')
             ? CourseType.lab
             : CourseType.theory;
         final credit = (course['credit'] as num?)?.toDouble() ?? 3.0;
@@ -206,6 +208,20 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
       return;
     }
 
+    if (_availableSections.isNotEmpty &&
+        (_selectedSection == null || _selectedSection!.trim().isEmpty)) {
+      final label = _selectedCourse?.type == CourseType.lab
+          ? 'group'
+          : 'section';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a $label before opening attendance.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isOpening = true);
     try {
       final now = DateTime.now();
@@ -232,7 +248,9 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
         final section = _selectedSection;
         final sectionLabel = section != null ? ' ($section)' : '';
         final codeGenerated = roomData['verification_code'] as String? ?? '';
-        final codeText = codeGenerated.isNotEmpty ? ' Code: $codeGenerated.' : '';
+        final codeText = codeGenerated.isNotEmpty
+            ? ' Code: $codeGenerated.'
+            : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -444,14 +462,19 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
                                       student?['roll_no'] ?? 'Unknown';
                                   final name =
                                       student?['full_name'] ?? 'Unknown';
-                                  final dist =
-                                      log['distance_meters'] as num? ?? 0;
+                                  final dist = log['distance_meters'] as num?;
                                   final time = DateTime.tryParse(
                                     log['submitted_at'] as String? ?? '',
                                   );
                                   final status = _normalizeAttendanceStatus(
                                     log['attendance_status'] ?? log['status'],
                                   );
+                                  final detailText = dist == null
+                                      ? (status == 'ABSENT'
+                                            ? 'No submission yet'
+                                            : 'No GPS distance recorded')
+                                      : '${dist.round()}m away'
+                                            '${time != null ? ' • ${_formatTime(time)}' : ''}';
                                   final isUpdating =
                                       updatingStudentId ==
                                       (log['student_user_id'] as String? ?? '');
@@ -500,7 +523,7 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '${dist}m away • ${time != null ? _formatTime(time) : ""}',
+                                                detailText,
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color:
@@ -1383,6 +1406,9 @@ class _GeoAttendanceRoomScreenState extends State<GeoAttendanceRoomScreen> {
               onPressed:
                   (_selectedCourse == null ||
                       _selectedRoom == null ||
+                      (_availableSections.isNotEmpty &&
+                          (_selectedSection == null ||
+                              _selectedSection!.trim().isEmpty)) ||
                       !selectedRoomHasCoords ||
                       !hasValidRange ||
                       validDuration == null ||

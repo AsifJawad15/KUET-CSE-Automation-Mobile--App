@@ -191,6 +191,8 @@ CREATE TABLE public.geo_attendance_rooms (
   range_meters integer NOT NULL DEFAULT 30,
   duration_minutes integer NOT NULL DEFAULT 50,
   absence_grace_minutes integer NOT NULL DEFAULT 5,
+  course_code text,
+  target_term text,
   CONSTRAINT geo_attendance_rooms_pkey PRIMARY KEY (id),
   CONSTRAINT geo_attendance_rooms_session_fkey FOREIGN KEY (session_id) REFERENCES public.class_sessions(id),
   CONSTRAINT geo_attendance_rooms_teacher_fkey FOREIGN KEY (teacher_user_id) REFERENCES public.teachers(user_id),

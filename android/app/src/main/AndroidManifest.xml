@@ -11,7 +11,6 @@
     
     <!-- Notification permissions (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <!-- Vibrate for notification alerts -->
@@ -23,17 +22,20 @@
     <!-- Exact alarm scheduling (class/exam reminders, Android 12+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    
+
     <!-- Wake lock for background operations -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Foreground service for background notification polling -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- FOREGROUND_SERVICE_REMOTE_MESSAGING: required on Android 14+ so the OS
+         does not kill the service while it processes FCM messages. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
 
     <!-- Allow app to receive boot complete for re-scheduling local reminders -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
+
     <application
         android:label="KUET CSE"
         android:name=".MainApplication"
@@ -74,10 +76,13 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Background notification sync service -->
+        <!-- Background notification sync service.
+             foregroundServiceType must include 'remoteMessaging' on Android 14+
+             so the OS allows the service to process FCM messages without killing it.
+             'dataSync' is kept for backward compatibility with Android 10-13. -->
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="dataSync|remoteMessaging"
             android:exported="false"
             tools:replace="android:exported" />
     </application>

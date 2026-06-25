@@ -175,18 +175,10 @@ class BackgroundNotificationService {
 
     final prefs = await SharedPreferences.getInstance();
 
-    // Authenticate the background Supabase client using the stored session so
-    // it can read RLS-protected notification rows (target_type = 'USER').
-    final storedSessionJson = prefs.getString(_kBgSessionJson);
-    if (storedSessionJson != null && storedSessionJson.isNotEmpty) {
-      try {
-        await supabase.auth.recoverSession(storedSessionJson);
-      } catch (e) {
-        debugPrint(
-          '[BackgroundNotificationService] session recovery failed: $e',
-        );
-      }
-    }
+    // Note: The app uses a custom JWT (not Supabase Auth), so no
+    // supabase.auth session exists. We authenticate with the anon key only,
+    // which is sufficient to read public notification rows. USER-targeted
+    // notifications are filtered locally using the userId stored in prefs.
 
     // Set initial last-check time so first tick doesn't flood
     if (prefs.getString(_kLastBgCheckTs) == null) {
@@ -322,9 +314,12 @@ class BackgroundNotificationService {
         (n['target_type'] as String?)?.trim().toUpperCase() ?? '';
     final targetValue = (n['target_value'] as String?)?.trim();
     final targetValueUpper = targetValue?.toUpperCase();
-    final targetYearTerm = (n['target_year_term'] as String?)?.trim();
+    final targetYearTerm = _normalizeTerm(
+      (n['target_year_term'] as String?)?.trim(),
+    );
 
     final roleUpper = role.toUpperCase();
+    final normalizedTerm = _normalizeTerm(term);
     final sectionUpper = section.toUpperCase();
     final enrolledUpper = enrolledCodes
         .map((c) => c.trim().toUpperCase())
@@ -333,15 +328,37 @@ class BackgroundNotificationService {
     return switch (targetType) {
       'ALL' => true,
       'ROLE' => targetValueUpper == roleUpper,
-      'YEAR_TERM' => targetValue == term,
+      'YEAR_TERM' => _normalizeTerm(targetValue) == normalizedTerm,
       'SECTION' =>
         targetValueUpper == sectionUpper &&
-            (targetYearTerm == null || targetYearTerm == term),
+            (targetYearTerm == null || targetYearTerm == normalizedTerm),
       'COURSE' =>
-        targetValueUpper != null && enrolledUpper.contains(targetValueUpper),
+        targetValueUpper != null &&
+            (enrolledUpper.contains(targetValueUpper) ||
+                (targetYearTerm != null && targetYearTerm == normalizedTerm)),
       'USER' => targetValue == userId,
       _ => false,
     };
+  }
+
+  static String? _normalizeTerm(String? value) {
+    final cleaned = value?.trim();
+    if (cleaned == null || cleaned.isEmpty) return null;
+
+    final direct = RegExp(r'^([1-4])\s*[-/]\s*([1-2])$').firstMatch(cleaned);
+    if (direct != null) {
+      return '${direct.group(1)}-${direct.group(2)}';
+    }
+
+    final named = RegExp(
+      r'(?:year|level|term|semester)?\s*([1-4])\D+(?:term|semester)?\s*([1-2])',
+      caseSensitive: false,
+    ).firstMatch(cleaned);
+    if (named != null) {
+      return '${named.group(1)}-${named.group(2)}';
+    }
+
+    return cleaned;
   }
 
   /// Deterministic notification ID from a string key.
