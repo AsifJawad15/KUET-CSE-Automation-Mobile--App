@@ -582,59 +582,21 @@ Distributed under the **MIT License**. See [`LICENSE.txt`](./LICENSE.txt) for de
 ## 👥 Authors
 
 **Abdullah Md. Shahporan**
-- GitHub: [@abdullahshahporan](https://github.com/abdullahshahporan)
+
 
 **Asif Jawad**
 
-### Contributors
+**Department of Computer Science and Engineering**
 
-We appreciate all contributors who have helped make this project better!
+**Khulna University of Engineering & technology**
 
----
 
-## 📞 Support
 
-### Issues
-If you encounter any issues, please:
-1. Check the [Known Issues](#known-issues--limitations) section
-2. Search existing [GitHub Issues](https://github.com/abdullahshahporan/KUET-CSE-Automation-Mobile--App/issues)
-3. Create a new issue with:
-   - Clear description
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Screenshots if applicable
-   - Device and Flutter version info
 
-### Questions
-For questions and discussions:
-- Open a [GitHub Discussion](https://github.com/abdullahshahporan/KUET-CSE-Automation-Mobile--App/discussions)
-- Contact the authors
-
----
-
-## 🙏 Acknowledgments
-
-- **KUET CSE Department** for inspiration and requirements
-- **Flutter Team** for the amazing framework
-- **Supabase** for the powerful backend platform
-- **Open Source Community** for various packages and tools
-
----
-
-## 📊 Project Stats
-
-- **Lines of Code**: ~3,300+ (Dart)
-- **Screens**: 30+
-- **Features**: 40+
-- **Supported Roles**: 2 (Student, Teacher)
-- **Minimum Flutter Version**: 3.10.3
-- **Target Platforms**: Android (Primary), iOS (Secondary)
-
----
 
 <div align="center">
 
-**Made with ❤️ for KUET CSE Department**
+
 
 [⬆ Back to Top](#kuet-cse-automation-mobile-app)
 
