@@ -267,7 +267,7 @@ class SupabaseConfig {
 }
 ```
 
-3. Follow the matching web repository's [authoritative migration sequence](https://github.com/AsifJawad15/KUET-CSE-Automation-Web-Portal/blob/master/docs/SETUP.md#database-installation). The public web clone currently omits nine required SQL files; restore and checksum-verify that set before installation. Historical SQL files in this mobile repository are not an alternative setup path.
+3. Follow the matching web repository's [authoritative migration sequence](https://github.com/AsifJawad15/KUET-CSE-Automation-Web-Portal/blob/master/docs/SETUP.md#database-installation). Web correction release 0.2.0 supplies a complete reconstructed SQL set and atomic draft editing/publication; verify its current manifest before installation. Historical SQL files in this mobile repository are not an alternative setup path.
 4. Configure the matching web backend for signed sessions and database JWTs. Use `--dart-define=BACKEND_URL=https://your-backend.example` with your actual HTTPS deployment for a device; `10.0.2.2` is the Android emulator's development host. Keep FCM disabled until Firebase registration is configured. See [SETUP.md](docs/SETUP.md).
 
 ### Step 4: Verify Installation
@@ -491,7 +491,7 @@ test/
 ### Best Practices
 - Supabase credentials in gitignored config file
 - No hardcoded secrets in source code
-- The authenticated gateway relies on the matching web database grants and RLS policies; public-clone SQL verification remains incomplete until the separate migration set is supplied
+- The authenticated gateway relies on the matching web database grants and RLS policies; the matching October web release includes the reconstructed SQL and executed isolated database/transaction tests; hosted configuration still requires staging verification
 - Input validation on all forms
 - Service-role, FCM service-account, and AI-provider keys remain server-side
 
